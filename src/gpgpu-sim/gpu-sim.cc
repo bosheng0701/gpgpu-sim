@@ -61,7 +61,7 @@
 #include "power_stat.h"
 #include "visualizer.h"
 #include "stats.h"
-
+// #include "gpu-cache.cc"
 #ifdef GPGPUSIM_POWER_MODEL
 #include "power_interface.h"
 #else
@@ -904,7 +904,7 @@ void gpgpu_sim::gpu_print_stat()
    time(&curr_time);
    unsigned long long elapsed_time = MAX( curr_time - g_simulation_starttime, 1 );
    printf( "gpu_total_sim_rate=%u\n", (unsigned)( ( gpu_tot_sim_insn + gpu_sim_insn ) / elapsed_time ) );
-
+   // L1_div_re();
    //shader_print_l1_miss_stat( stdout );
    shader_print_cache_stats(stdout);
 
@@ -1296,12 +1296,12 @@ void gpgpu_sim::cycle()
             hrs     = elapsed_time/3600 - 24*days;
             minutes = elapsed_time/60 - 60*(hrs + 24*days);
             sec = elapsed_time - 60*(minutes + 60*(hrs + 24*days));
-            printf("GPGPU-Sim uArch: cycles simulated: %lld  inst.: %lld (ipc=%4.1f) sim_rate=%u (inst/sec) elapsed = %u:%u:%02u:%02u / %s", 
-                   gpu_tot_sim_cycle + gpu_sim_cycle, gpu_tot_sim_insn + gpu_sim_insn, 
-                   (double)gpu_sim_insn/(double)gpu_sim_cycle,
-                   (unsigned)((gpu_tot_sim_insn+gpu_sim_insn) / elapsed_time),
-                   (unsigned)days,(unsigned)hrs,(unsigned)minutes,(unsigned)sec,
-                   ctime(&curr_time));
+            //printf("GPGPU-Sim uArch: cycles simulated: %lld  inst.: %lld (ipc=%4.1f) sim_rate=%u (inst/sec) elapsed = %u:%u:%02u:%02u / %s", 
+            //       gpu_tot_sim_cycle + gpu_sim_cycle, gpu_tot_sim_insn + gpu_sim_insn, 
+            //       (double)gpu_sim_insn/(double)gpu_sim_cycle,
+            //      (unsigned)((gpu_tot_sim_insn+gpu_sim_insn) / elapsed_time),
+            //       (unsigned)days,(unsigned)hrs,(unsigned)minutes,(unsigned)sec,
+            //       ctime(&curr_time));
             fflush(stdout);
             last_liveness_message_time = elapsed_time; 
          }

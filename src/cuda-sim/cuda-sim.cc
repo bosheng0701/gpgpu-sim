@@ -1356,8 +1356,8 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
    if ( (g_ptx_sim_num_insn % 100000) == 0 ) {
       dim3 ctaid = get_ctaid();
       dim3 tid = get_tid();
-      printf("GPGPU-Sim PTX: %u instructions simulated : ctaid=(%u,%u,%u) tid=(%u,%u,%u)\n",
-             g_ptx_sim_num_insn, ctaid.x,ctaid.y,ctaid.z,tid.x,tid.y,tid.z );
+      //printf("GPGPU-Sim PTX: %u instructions simulated : ctaid=(%u,%u,%u) tid=(%u,%u,%u)\n",
+      //      g_ptx_sim_num_insn, ctaid.x,ctaid.y,ctaid.z,tid.x,tid.y,tid.z);
       fflush(stdout);
    }
    
@@ -1513,8 +1513,8 @@ unsigned ptx_sim_init_thread( kernel_info_t &kernel,
       cta_info->add_thread(thd);
       thd->m_local_mem = local_mem;
       if ( g_debug_execution==-1 ) {
-         printf("GPGPU-Sim PTX simulator:  allocating thread ctaid=(%u,%u,%u) tid=(%u,%u,%u) @ 0x%Lx\n",
-                ctaid3d.x,ctaid3d.y,ctaid3d.z,tid3d.x,tid3d.y,tid3d.z, (unsigned long long)thd );
+         //printf("GPGPU-Sim PTX simulator:  allocating thread ctaid=(%u,%u,%u) tid=(%u,%u,%u) @ 0x%Lx\n",
+         //       ctaid3d.x,ctaid3d.y,ctaid3d.z,tid3d.x,tid3d.y,tid3d.z, (unsigned long long)thd );
          fflush(stdout);
       }
       active_threads.push_back(thd);

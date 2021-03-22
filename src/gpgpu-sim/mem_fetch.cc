@@ -45,6 +45,7 @@ mem_fetch::mem_fetch( const mem_access_t &access,
    m_access = access;
    if( inst ) { 
        m_inst = *inst;
+       mf_div = m_inst.warp_div; //TODO: 0319 changes
        assert( wid == m_inst.warp_id() );
    }
    m_data_size = access.get_size();

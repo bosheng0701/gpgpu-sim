@@ -326,7 +326,9 @@ void warp_inst_t::generate_mem_accesses()
     default:
         abort();
     }
-
+    warp_inst_t::warp_div =  m_accessq.size() - starting_queue_size;
+    warp_inst_t::begin_time = gpu_sim_cycle + gpu_tot_sim_cycle;//TODO:03/19 change
+    
     if( cache_block_size ) {
         assert( m_accessq.empty() );
         mem_access_byte_mask_t byte_mask; 

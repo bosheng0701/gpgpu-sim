@@ -825,8 +825,9 @@ public:
     }
     virtual ~warp_inst_t(){
     }
-
+    int warp_div; //TODO:03/19 change
     // modifiers
+    int begin_time;
     void broadcast_barrier_reduction( const active_mask_t& access_mask);
     void do_atomic(bool forceDo=false);
     void do_atomic( const active_mask_t& access_mask, bool forceDo=false );
