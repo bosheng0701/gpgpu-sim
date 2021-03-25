@@ -37,6 +37,7 @@
 
 #include "addrdec.h"
 
+
 enum cache_block_state {
     INVALID,
     RESERVED,
@@ -450,14 +451,15 @@ struct cache_sub_stats{
     unsigned misses;
     unsigned pending_hits;
     unsigned res_fails;
-
+    int L1_req_div[35]={0};
     unsigned long long port_available_cycles; 
     unsigned long long data_port_busy_cycles; 
     unsigned long long fill_port_busy_cycles; 
-
+    
     cache_sub_stats(){
         clear();
     }
+    
     void clear(){
         accesses = 0;
         misses = 0;
@@ -466,6 +468,7 @@ struct cache_sub_stats{
         port_available_cycles = 0; 
         data_port_busy_cycles = 0; 
         fill_port_busy_cycles = 0; 
+        memset(L1_req_div, 0, sizeof(L1_req_div));
     }
     cache_sub_stats &operator+=(const cache_sub_stats &css){
         ///
@@ -477,7 +480,7 @@ struct cache_sub_stats{
         res_fails += css.res_fails;
         port_available_cycles += css.port_available_cycles; 
         data_port_busy_cycles += css.data_port_busy_cycles; 
-        fill_port_busy_cycles += css.fill_port_busy_cycles; 
+        fill_port_busy_cycles += css.fill_port_busy_cycles;   
         return *this;
     }
 
@@ -538,7 +541,8 @@ public:
 
     // accessors for cache bandwidth availability 
     virtual bool data_port_free() const = 0; 
-    virtual bool fill_port_free() const = 0; 
+    virtual bool fill_port_free() const = 0;
+    int *L1_request_div_hit=(int*)malloc( sizeof(int) * 35 ); //TODO: 0324
 };
 
 bool was_write_sent( const std::list<cache_event> &events );
@@ -611,7 +615,7 @@ public:
     // accessors for cache bandwidth availability 
     bool data_port_free() const { return m_bandwidth_management.data_port_free(); } 
     bool fill_port_free() const { return m_bandwidth_management.fill_port_free(); } 
-
+   
 protected:
     // Constructor that can be used by derived classes with custom tag arrays
     baseline_cache( const char *name,
@@ -772,6 +776,8 @@ public:
                                               mem_fetch *mf,
                                               unsigned time,
                                               std::list<cache_event> &events );
+   
+  
 protected:
     data_cache( const char *name,
                 cache_config &config,

@@ -1176,6 +1176,7 @@ void ldst_unit::print_cache_stats( FILE *fp, unsigned& dl1_accesses, unsigned& d
    if( m_L1D ) {
        m_L1D->print( fp, dl1_accesses, dl1_misses );
    }
+   
 }
 
 void ldst_unit::get_cache_stats(cache_stats &cs) {
@@ -1188,10 +1189,16 @@ void ldst_unit::get_cache_stats(cache_stats &cs) {
         cs += m_L1T->get_stats();
 
 }
-
+int L1_req_div[35]={0};
 void ldst_unit::get_L1D_sub_stats(struct cache_sub_stats &css) const{
     if(m_L1D)
         m_L1D->get_sub_stats(css);
+    
+    for(int i=1;i<33;i++){//0324
+        L1_req_div[i]+=*(m_L1D->L1_request_div_hit+i);
+        //printf("%d. %d ",i,L1_req_div[i]);
+    }
+    //printf("\n");
 }
 void ldst_unit::get_L1C_sub_stats(struct cache_sub_stats &css) const{
     if(m_L1C)
@@ -2046,6 +2053,12 @@ void gpgpu_sim::shader_print_cache_stats( FILE *fout ) const{
         fprintf(fout, "\tL1D_total_cache_pending_hits = %u\n", total_css.pending_hits);
         fprintf(fout, "\tL1D_total_cache_reservation_fails = %u\n", total_css.res_fails);
         total_css.print_port_stats(fout, "\tL1D_cache"); 
+        for(int i=1;i<33;i++){
+            printf("%d. %d ",i,L1_req_div[i]);//0324
+        }
+        printf("\n");
+        memset(L1_req_div,0, sizeof(L1_req_div));
+        
     }
 
     // L1C
@@ -2263,6 +2276,7 @@ void ldst_unit::print(FILE *fout) const
         default: abort();
         }
         fprintf(fout,"\n");
+         
     }
     fprintf(fout,"LD/ST wb    = ");
     m_next_wb.print(fout);
@@ -2291,6 +2305,7 @@ void ldst_unit::print(FILE *fout) const
         const mem_fetch *mf = *i;
         mf->print(fout);
     }
+   
 }
 
 void shader_core_ctx::display_pipeline(FILE *fout, int print_mem, int mask ) const
@@ -3394,6 +3409,7 @@ void simt_core_cluster::get_L1I_sub_stats(struct cache_sub_stats &css) const{
 void simt_core_cluster::get_L1D_sub_stats(struct cache_sub_stats &css) const{
     struct cache_sub_stats temp_css;
     struct cache_sub_stats total_css;
+    
     temp_css.clear();
     total_css.clear();
     for ( unsigned i = 0; i < m_config->n_simt_cores_per_cluster; ++i ) {

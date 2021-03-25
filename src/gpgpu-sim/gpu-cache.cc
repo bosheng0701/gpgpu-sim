@@ -1063,13 +1063,9 @@ data_cache::process_tag_probe( bool wr,
 // of caching policies.
 // Both the L1 and L2 override this function to provide a means of
 // performing actions specific to each cache when such actions are implemnted.
-int L1_request_div_hit[32]={0};//TODO:0319 change
+//int L1_request_div_hit[32]={0};//TODO:0319 change
 int cache_flag=0 ;//TODO: 0 -> l1cache_access  1 -> l2cache_access
-// void l1_req_div_re(){
-//     for(int i=1;i<=32;i++){
-//             printf("%d.%d ",i,L1_request_div_hit[i]);
-//         }
-// }
+
 enum cache_request_status
 data_cache::access( new_addr_type addr,
                     mem_fetch *mf,
@@ -1086,13 +1082,12 @@ data_cache::access( new_addr_type addr,
     enum cache_request_status access_status
         = process_tag_probe( wr, probe_status, addr, cache_index, mf, time, events );
     //printf("%d ",cache_flag);
-    if(cache_flag == 0 && access_status == 0 && (mf->mf_div < 33 && mf->mf_div > 0 )){ //可能prob時候HIT  access的時候write會出現reserve faile TODO:0319 change
-        L1_request_div_hit[mf->mf_div]++;
-        //printf("%d %d \n",mf->mf_div,L1_request_div_hit[mf->mf_div]);
-        for(int i=1;i<=32;i++){
-            printf("%d.%d ",i,L1_request_div_hit[i]);
-        }
-        printf("\n");
+    if(cache_flag == 0 && access_status == 0 && (mf->mf_div < 5 && mf->mf_div > 0 )){ //可能prob時候HIT  access的時候write會出現reserve faile TODO:0319 change
+        *(L1_request_div_hit+mf->mf_div)+=1;//TODO:0324
+        // for(int i=1;i<=32;i++){
+        //     printf("%d.%d ",i,L1_request_div_hit[i]);
+        // }
+        // printf("\n");
     }    
     m_stats.inc_stats(mf->get_access_type(),
         m_stats.select_stats_status(probe_status, access_status));
