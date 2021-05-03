@@ -73,7 +73,7 @@ public:
    void do_atomic();
 
    void print( FILE *fp, bool print_inst = true ) const;
-   short  mf_div = 35;// TODO: 0319 change
+   short  mf_div = 35;// bosheng: 0319 change
    const addrdec_t &get_tlx_addr() const { return m_raw_addr; }
    unsigned get_data_size() const { return m_data_size; }
    void     set_data_size( unsigned size ) { m_data_size=size; }

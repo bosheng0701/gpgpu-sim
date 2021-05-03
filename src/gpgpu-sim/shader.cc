@@ -1189,12 +1189,12 @@ void ldst_unit::get_cache_stats(cache_stats &cs) {
         cs += m_L1T->get_stats();
 
 }
-int L1_req_div[35]={0};
+int L1_req_div[35]={0}; //bosheng: 0324  create a array to store the total number of L1D diverse hit  
 void ldst_unit::get_L1D_sub_stats(struct cache_sub_stats &css) const{
     if(m_L1D)
         m_L1D->get_sub_stats(css);
     
-    for(int i=1;i<33;i++){//0324
+    for(int i=1;i<33;i++){//bosheng: 0324 sum each SM L1D cache diverse(1~32) hit 
         L1_req_div[i]+=*(m_L1D->L1_request_div_hit+i);
         //printf("%d. %d ",i,L1_req_div[i]);
     }
@@ -2054,7 +2054,7 @@ void gpgpu_sim::shader_print_cache_stats( FILE *fout ) const{
         fprintf(fout, "\tL1D_total_cache_reservation_fails = %u\n", total_css.res_fails);
         total_css.print_port_stats(fout, "\tL1D_cache"); 
         for(int i=1;i<33;i++){
-            printf("%d. %d ",i,L1_req_div[i]);//0324
+            printf("%d. %d ",i,L1_req_div[i]);// bosheng: 0324
         }
         printf("\n");
         memset(L1_req_div,0, sizeof(L1_req_div));

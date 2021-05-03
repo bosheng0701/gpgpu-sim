@@ -542,7 +542,7 @@ public:
     // accessors for cache bandwidth availability 
     virtual bool data_port_free() const = 0; 
     virtual bool fill_port_free() const = 0;
-    int *L1_request_div_hit=(int*)malloc( sizeof(int) * 35 ); //TODO: 0324
+    int *L1_request_div_hit=(int*)malloc( sizeof(int) * 35 ); // bosheng:0324
 };
 
 bool was_write_sent( const std::list<cache_event> &events );
@@ -1078,7 +1078,7 @@ private:
         new_addr_type m_block_addr;
     };
 
-    // TODO: replace fifo_pipeline with this?
+    //  replace fifo_pipeline with this?
     template<class T> class fifo {
     public:
         fifo( unsigned size ) 
