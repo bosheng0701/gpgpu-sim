@@ -221,7 +221,9 @@ public:
     virtual void push(mem_fetch *mf) 
     {
         mf->set_status(IN_PARTITION_L2_TO_DRAM_QUEUE,0/*FIXME*/);
+        //printf("l2_to_dram %p\n",mf->get_addr());
         m_unit->m_L2_dram_queue->push(mf);
+       // m_unit->m_L2_dram_queue->print();
     }
 private:
     memory_sub_partition *m_unit;

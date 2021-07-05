@@ -1926,13 +1926,13 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num )
       m_n_active_cta--;
       m_barriers.deallocate_barrier(cta_num);
       shader_CTA_count_unlog(m_sid, 1);
-     // printf("GPGPU-Sim uArch: Shader %d finished CTA #%d (%lld,%lld), %u CTAs running\n", m_sid, cta_num, gpu_sim_cycle, gpu_tot_sim_cycle,
-      //       m_n_active_cta );
+      printf("GPGPU-Sim uArch: Shader %d finished CTA #%d (%lld,%lld), %u CTAs running\n", m_sid, cta_num, gpu_sim_cycle, gpu_tot_sim_cycle,
+             m_n_active_cta );
       if( m_n_active_cta == 0 ) {
           assert( m_kernel != NULL );
           m_kernel->dec_running();
-          //printf("GPGPU-Sim uArch: Shader %u empty (release kernel %u \'%s\').\n", m_sid, m_kernel->get_uid(),
-          //       m_kernel->name().c_str() );
+          printf("GPGPU-Sim uArch: Shader %u empty (release kernel %u \'%s\').\n", m_sid, m_kernel->get_uid(),
+                 m_kernel->name().c_str() );
           if( m_kernel->no_more_ctas_to_run() ) {
               if( !m_kernel->running() ) {
                   printf("GPGPU-Sim uArch: GPU detected kernel \'%s\' finished on shader %u.\n", m_kernel->name().c_str(), m_sid );
@@ -1947,8 +1947,8 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num )
 
 void gpgpu_sim::shader_print_runtime_stat( FILE *fout ) 
 {
-    /*
-   fprintf(fout, "SHD_INSN: ");
+    
+       fprintf(fout, "SHD_INSN: ");
    for (unsigned i=0;i<m_n_shader;i++) 
       fprintf(fout, "%u ",m_sc[i]->get_num_sim_insn());
    fprintf(fout, "\n");
@@ -1965,7 +1965,7 @@ void gpgpu_sim::shader_print_runtime_stat( FILE *fout )
    for (unsigned i=0; i<m_shader_config->n_thread_per_shader; i++) 
       fprintf(fout, "%d ", m_sc[0]->get_thread_n_insn(i) );
    fprintf(fout, "\n");
-   */
+   
 }
 
 
@@ -2110,7 +2110,7 @@ void gpgpu_sim::shader_print_l1_miss_stat( FILE *fout ) const
    fprintf( fout, "total_dl1_misses=%d\n", total_d1_misses );
    fprintf( fout, "total_dl1_accesses=%d\n", total_d1_accesses );
    fprintf( fout, "total_dl1_miss_rate= %f\n", (float)total_d1_misses / (float)total_d1_accesses );
-   /*
+   
    fprintf(fout, "THD_INSN_AC: ");
    for (unsigned i=0; i<m_shader_config->n_thread_per_shader; i++) 
       fprintf(fout, "%d ", m_sc[0]->get_thread_n_insn_ac(i));
@@ -2159,7 +2159,7 @@ void gpgpu_sim::shader_print_l1_miss_stat( FILE *fout ) const
       }
    }
    fprintf(fout, "\n");
-   */
+   
 }
 
 void warp_inst_t::print( FILE *fout ) const
@@ -2338,23 +2338,23 @@ void shader_core_ctx::display_pipeline(FILE *fout, int print_mem, int mask ) con
    display_simt_state(fout,mask);
    fprintf(fout, "-------------------------- Scoreboard\n");
    m_scoreboard->printContents();
-/*
+
    fprintf(fout,"ID/OC (SP)  = ");
    print_stage(ID_OC_SP, fout);
    fprintf(fout,"ID/OC (SFU) = ");
    print_stage(ID_OC_SFU, fout);
    fprintf(fout,"ID/OC (MEM) = ");
    print_stage(ID_OC_MEM, fout);
-*/
+
    fprintf(fout, "-------------------------- OP COL\n");
    m_operand_collector.dump(fout);
-/* fprintf(fout, "OC/EX (SP)  = ");
+ fprintf(fout, "OC/EX (SP)  = ");
    print_stage(OC_EX_SP, fout);
    fprintf(fout, "OC/EX (SFU) = ");
    print_stage(OC_EX_SFU, fout);
    fprintf(fout, "OC/EX (MEM) = ");
    print_stage(OC_EX_MEM, fout);
-*/
+
    fprintf(fout, "-------------------------- Pipe Regs\n");
 
    for (unsigned i = 0; i < N_PIPELINE_STAGES; i++) {

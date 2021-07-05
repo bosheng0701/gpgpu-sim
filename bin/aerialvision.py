@@ -78,7 +78,8 @@ import Tkinter as Tk
 import Pmw
 import startup
 import time
-
+import matplotlib
+matplotlib.use('Agg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 from matplotlib.figure import Figure
 
