@@ -595,15 +595,17 @@ void shader_core_ctx::decode()
 
 void shader_core_ctx::fetch()
 {
+    //printf("fetch(); \n");//bosheng0724
     if( !m_inst_fetch_buffer.m_valid ) {
         // find an active warp with space in instruction buffer that is not already waiting on a cache miss
         // and get next 1-2 instructions from i-cache...
         for( unsigned i=0; i < m_config->max_warps_per_shader; i++ ) {
             unsigned warp_id = (m_last_warp_fetched+1+i) % m_config->max_warps_per_shader;
-
+            
             // this code checks if this warp has finished executing and can be reclaimed
             if( m_warp[warp_id].hardware_done() && !m_scoreboard->pendingWrites(warp_id) && !m_warp[warp_id].done_exit() ) {
                 bool did_exit=false;
+                printf("Cycle:%d Shader %d warp_id:%u cta_id:%u bosheng\n",gpu_sim_cycle + gpu_tot_sim_cycle,m_sid,warp_id,m_warp[warp_id].get_cta_id());//bosheng0724
                 for( unsigned t=0; t<m_config->warp_size;t++) {
                     unsigned tid=warp_id*m_config->warp_size+t;
                     if( m_threadState[tid].m_active == true ) {
@@ -672,6 +674,9 @@ void shader_core_ctx::fetch()
 void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
 {
     execute_warp_inst_t(inst);
+    // FILE *pFile;
+    // pFile = fopen("/root/benchmark_run/rodinia/3.1/cuda/bfs/cache.txt","a");//#bosheng: 0706 
+    // fprintf(pFile,"%d: \n",inst.warp_id());
     if( inst.is_load() || inst.is_store() )
         inst.generate_mem_accesses();
 }
@@ -806,7 +811,7 @@ void scheduler_unit::cycle()
     bool ready_inst = false;  // of the valid instructions, there was one not waiting for pending register writes
     bool issued_inst = false; // of these we issued one
 
-    order_warps();
+    order_warps(); // LRR schedule 
     for ( std::vector< shd_warp_t* >::const_iterator iter = m_next_cycle_prioritized_warps.begin();
           iter != m_next_cycle_prioritized_warps.end();
           iter++ ) {
@@ -839,7 +844,7 @@ void scheduler_unit::cycle()
                     warp(warp_id).ibuffer_flush();
                 } else {
                     valid_inst = true;
-                    if ( !m_scoreboard->checkCollision(warp_id, pI) ) {
+                    if ( !m_scoreboard->checkCollision(warp_id, pI) ) { 
                         SCHED_DPRINTF( "Warp (warp_id %u, dynamic_warp_id %u) passes scoreboard\n",
                                        (*iter)->get_warp_id(), (*iter)->get_dynamic_warp_id() );
                         ready_inst = true;
@@ -1343,7 +1348,13 @@ mem_stage_stall_type ldst_unit::process_memory_access_queue( cache_t *cache, war
 
     //const mem_access_t &access = inst.accessq_back();
     mem_fetch *mf = m_mf_allocator->alloc(inst,inst.accessq_back());
+    
     std::list<cache_event> events;
+    FILE *pFile;
+    pFile = fopen("/root/benchmark_run/rodinia/3.1/cuda/bfs/cache.txt","a");//#bosheng: 0706 
+    //fprintf(pFile,"%p %p  \n",mf->get_pc(),mf->get_addr());
+    fprintf(pFile,"%p  \n",mf->get_addr());
+    fclose(pFile);
     enum cache_request_status status = cache->access(mf->get_addr(),mf,gpu_sim_cycle+gpu_tot_sim_cycle,events);
     return process_cache_access( cache, mf->get_addr(), inst, events, mf, status );
 }
@@ -1391,6 +1402,8 @@ bool ldst_unit::memory_cycle( warp_inst_t &inst, mem_stage_stall_type &stall_rea
    assert( !inst.accessq_empty() );
    mem_stage_stall_type stall_cond = NO_RC_FAIL;
    const mem_access_t &access = inst.accessq_back();
+
+   
 
    bool bypassL1D = false; 
    if ( CACHE_GLOBAL == inst.cache_op || (m_L1D == NULL) ) {
@@ -1935,7 +1948,7 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num )
                  m_kernel->name().c_str() );
           if( m_kernel->no_more_ctas_to_run() ) {
               if( !m_kernel->running() ) {
-                  printf("GPGPU-Sim uArch: GPU detected kernel \'%s\' finished on shader %u.\n", m_kernel->name().c_str(), m_sid );
+                printf("GPGPU-Sim uArch: GPU detected kernel \'%s\' finished on shader %u.\n", m_kernel->name().c_str(), m_sid );
                   m_gpu->set_kernel_done( m_kernel );
               }
           }
@@ -1947,7 +1960,7 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num )
 
 void gpgpu_sim::shader_print_runtime_stat( FILE *fout ) 
 {
-    
+    /*
        fprintf(fout, "SHD_INSN: ");
    for (unsigned i=0;i<m_n_shader;i++) 
       fprintf(fout, "%u ",m_sc[i]->get_num_sim_insn());
@@ -1965,7 +1978,7 @@ void gpgpu_sim::shader_print_runtime_stat( FILE *fout )
    for (unsigned i=0; i<m_shader_config->n_thread_per_shader; i++) 
       fprintf(fout, "%d ", m_sc[0]->get_thread_n_insn(i) );
    fprintf(fout, "\n");
-   
+   */
 }
 
 
@@ -2110,7 +2123,7 @@ void gpgpu_sim::shader_print_l1_miss_stat( FILE *fout ) const
    fprintf( fout, "total_dl1_misses=%d\n", total_d1_misses );
    fprintf( fout, "total_dl1_accesses=%d\n", total_d1_accesses );
    fprintf( fout, "total_dl1_miss_rate= %f\n", (float)total_d1_misses / (float)total_d1_accesses );
-   
+   /*
    fprintf(fout, "THD_INSN_AC: ");
    for (unsigned i=0; i<m_shader_config->n_thread_per_shader; i++) 
       fprintf(fout, "%d ", m_sc[0]->get_thread_n_insn_ac(i));
@@ -2127,7 +2140,7 @@ void gpgpu_sim::shader_print_l1_miss_stat( FILE *fout ) const
    for (unsigned i=0; i<m_shader_config->n_thread_per_shader; i++) 
       fprintf(fout, "%d ", m_sc[0]->get_thread_n_l1_access_ac(i));
    fprintf(fout, "\n");
-
+    
    //per warp
    int temp =0; 
    fprintf(fout, "W_L1_Mss: "); //l1 miss rate per warp
@@ -2157,7 +2170,7 @@ void gpgpu_sim::shader_print_l1_miss_stat( FILE *fout ) const
          fprintf(fout, "%d ", temp);
          temp = 0;
       }
-   }
+   }*/
    fprintf(fout, "\n");
    
 }

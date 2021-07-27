@@ -1050,7 +1050,7 @@ void shader_core_ctx::mem_instruction_stats(const warp_inst_t &inst)
 
 void shader_core_ctx::issue_block2core( kernel_info_t &kernel ) 
 {
-    set_max_cta(kernel);
+    set_max_cta(kernel);//bosheng0726
 
     // find a free CTA context 
     unsigned free_cta_hw_id=(unsigned)-1;
@@ -1098,9 +1098,10 @@ void shader_core_ctx::issue_block2core( kernel_info_t &kernel )
     // initialize the SIMT stacks and fetch hardware
     init_warps( free_cta_hw_id, start_thread, end_thread);
     m_n_active_cta++;
+   //bosheng0723  printf("%u--%u---%u*******\n",start_thread,end_thread ,m_n_active_cta);
 
     shader_CTA_count_log(m_sid, 1);
-    //printf("GPGPU-Sim uArch: core:%3d, cta:%2u initialized @(%lld,%lld)\n", m_sid, free_cta_hw_id, gpu_sim_cycle, gpu_tot_sim_cycle );
+    printf("GPGPU-Sim uArch: core:%3d, cta:%2u initialized @(%lld,%lld)\n", m_sid, free_cta_hw_id, gpu_sim_cycle, gpu_tot_sim_cycle );
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////

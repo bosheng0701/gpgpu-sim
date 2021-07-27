@@ -188,9 +188,9 @@ void warp_inst_t::generate_mem_accesses()
         return; 
     if( m_warp_active_mask.count() == 0 ) 
         return; // predicated off
-
+    
     const size_t starting_queue_size = m_accessq.size();
-
+    
     assert( is_load() || is_store() );
     assert( m_per_scalar_thread_valid ); // need address information per thread
 

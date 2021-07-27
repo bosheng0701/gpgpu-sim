@@ -342,7 +342,7 @@ void memory_sub_partition::cache_cycle( unsigned cycle )
 				mf->set_reply();
 				mf->set_status(IN_PARTITION_L2_TO_ICNT_QUEUE,gpu_sim_cycle+gpu_tot_sim_cycle);
 				m_L2_icnt_queue->push(mf);
-                printf("l2_to_icnt %p\n",mf->get_addr());//0702
+                //printf("l2_to_icnt %p\n",mf->get_addr());//bosheng:0702
            }else{
 				m_request_tracker.erase(mf);
 				delete mf;
@@ -363,7 +363,7 @@ void memory_sub_partition::cache_cycle( unsigned cycle )
         } else if ( !m_L2_icnt_queue->full() ) {
             mf->set_status(IN_PARTITION_L2_TO_ICNT_QUEUE,gpu_sim_cycle+gpu_tot_sim_cycle);
             m_L2_icnt_queue->push(mf);
-            printf("l2_to_icnt %p\n",mf->get_addr());//0702
+            //printf("l2_to_icnt %p\n",mf->get_addr());//bosheng:0702
             //printf("0702 %d\n",mf->get_sub_partition_id());
             //m_L2_icnt_queue->print();
             m_dram_L2_queue->pop();
@@ -402,7 +402,7 @@ void memory_sub_partition::cache_cycle( unsigned cycle )
                             mf->set_reply();
                             mf->set_status(IN_PARTITION_L2_TO_ICNT_QUEUE,gpu_sim_cycle+gpu_tot_sim_cycle);
                             m_L2_icnt_queue->push(mf);
-                            printf("l2_to_icnt %p\n",mf->get_addr());//0702
+                            //printf("l2_to_icnt %p\n",mf->get_addr());//bosheng:0702
                             
                         }
                         m_icnt_L2_queue->pop();
@@ -432,7 +432,7 @@ void memory_sub_partition::cache_cycle( unsigned cycle )
         mem_fetch* mf = m_rop.front().req;
         m_rop.pop();
         m_icnt_L2_queue->push(mf);
-        printf("ROP %p \n",mf->get_addr());//0702
+        //printf("ROP %p \n",mf->get_addr());//bosheng:0702
         // m_icnt_L2_queue->print();
         mf->set_status(IN_PARTITION_ICNT_TO_L2_QUEUE,gpu_sim_cycle+gpu_tot_sim_cycle);
     }
@@ -558,7 +558,7 @@ void memory_sub_partition::push( mem_fetch* req, unsigned long long cycle )
         m_stats->memlatstat_icnt2mem_pop(req);
         if( req->istexture() ) {
             m_icnt_L2_queue->push(req);
-            printf("req_addr %p \n",req->get_addr());//0702
+            //printf("req_addr %p \n",req->get_addr());//bosheng:0702
             req->set_status(IN_PARTITION_ICNT_TO_L2_QUEUE,gpu_sim_cycle+gpu_tot_sim_cycle);
         } else {
             rop_delay_t r;

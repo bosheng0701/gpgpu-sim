@@ -172,7 +172,6 @@ public:
       printf("%s(%d): ", m_name, m_length);
       while (ddp) {
          printf("%p ", ddp->m_data);
-         
          ddp = ddp->m_next;
       }
       printf("\n");
