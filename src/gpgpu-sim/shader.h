@@ -1586,7 +1586,7 @@ public:
         printf("GPGPU-Sim uArch: Shader %d bind to kernel %u \'%s\'\n", m_sid, m_kernel->get_uid(),
                  m_kernel->name().c_str() );
     }
-   
+    
     // accessors
     bool fetch_unit_response_buffer_full() const;
     bool ldst_unit_response_buffer_full() const;
@@ -1781,7 +1781,17 @@ public:
     const shader_core_config *m_config;
     const memory_config *m_memory_config;
     class simt_core_cluster *m_cluster;
-
+    //LSU & ALU status
+    unsigned lsu_flag=0; // 0 --> free 1-->busy
+    unsigned alu_flag=0;
+    int lsu_begin;
+    int lsu_end;
+    int lsu_time;
+    int alu_begin;
+    int alu_end;
+    int alu_time;
+    long total_lsu_time;
+    long total_alu_time;
     // statistics 
     shader_core_stats *m_stats;
 

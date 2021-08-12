@@ -79,6 +79,7 @@ mem_fetch::~mem_fetch()
 
 void mem_fetch::print( FILE *fp, bool print_inst ) const
 {
+    
     if( this == NULL ) {
         fprintf(fp," <NULL mem_fetch pointer>\n");
         return;

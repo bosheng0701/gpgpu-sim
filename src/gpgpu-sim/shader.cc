@@ -605,7 +605,7 @@ void shader_core_ctx::fetch()
             // this code checks if this warp has finished executing and can be reclaimed
             if( m_warp[warp_id].hardware_done() && !m_scoreboard->pendingWrites(warp_id) && !m_warp[warp_id].done_exit() ) {
                 bool did_exit=false;
-                printf("Cycle:%d Shader %d warp_id:%u cta_id:%u bosheng\n",gpu_sim_cycle + gpu_tot_sim_cycle,m_sid,warp_id,m_warp[warp_id].get_cta_id());//bosheng0724
+               // printf("Cycle:%d Shader %d warp_id:%u cta_id:%u bosheng\n",gpu_sim_cycle + gpu_tot_sim_cycle,m_sid,warp_id,m_warp[warp_id].get_cta_id());//bosheng0724
                 for( unsigned t=0; t<m_config->warp_size;t++) {
                     unsigned tid=warp_id*m_config->warp_size+t;
                     if( m_threadState[tid].m_active == true ) {
@@ -810,6 +810,48 @@ void scheduler_unit::cycle()
     bool valid_inst = false;  // there was one warp with a valid instruction to issue (didn't require flush due to control hazard)
     bool ready_inst = false;  // of the valid instructions, there was one not waiting for pending register writes
     bool issued_inst = false; // of these we issued one
+    
+    if(!m_mem_out->has_free()){ //bosheng 0810
+        if(m_shader->lsu_flag==0){
+            m_shader->lsu_begin=gpu_sim_cycle + gpu_tot_sim_cycle;
+            m_shader->lsu_flag=1;
+          
+        }      
+    }
+    else if(m_mem_out->has_free()) {
+        if(m_shader->lsu_flag==1){
+            m_shader->lsu_end=gpu_sim_cycle + gpu_tot_sim_cycle;
+            m_shader->lsu_time= m_shader->lsu_end - m_shader->lsu_begin;
+            m_shader->total_lsu_time=m_shader->total_lsu_time+m_shader->lsu_time;
+            if(m_shader->lsu_time>100){
+                FILE *plsu;
+                plsu = fopen("./lsutime.txt","a");//#bosheng: 0810
+                fprintf(plsu,"%d , %d , %d , %d ,%ld\n",m_shader->m_sid,m_shader->lsu_begin,m_shader->lsu_end, m_shader->lsu_time,m_shader->total_lsu_time);
+                fclose(plsu);
+            }
+            m_shader->lsu_flag=0;
+        }
+    }
+    if(!m_sp_out->has_free()){
+        if(m_shader->alu_flag==0){
+            m_shader->alu_begin=gpu_sim_cycle + gpu_tot_sim_cycle;
+            m_shader->alu_flag=1;
+        }
+    }
+    else if(m_sp_out->has_free()) {
+        if(m_shader->alu_flag==1){
+            m_shader->alu_end=gpu_sim_cycle + gpu_tot_sim_cycle;
+            m_shader->alu_time= m_shader->alu_end - m_shader->alu_begin;
+            m_shader->total_alu_time=m_shader->total_alu_time+m_shader->alu_time;
+            if(m_shader->alu_time>0){
+                FILE *palu;
+                palu = fopen("./alutime.txt","a");//#bosheng: 0810
+                fprintf(palu,"%d , %d , %d , %d ,%ld \n",m_shader->m_sid,m_shader->alu_begin,m_shader->alu_end, m_shader->alu_time,m_shader->total_alu_time);
+                fclose(palu);
+            }
+            m_shader->alu_flag=0;
+        }
+    }
 
     order_warps(); // LRR schedule 
     for ( std::vector< shd_warp_t* >::const_iterator iter = m_next_cycle_prioritized_warps.begin();
@@ -1351,7 +1393,7 @@ mem_stage_stall_type ldst_unit::process_memory_access_queue( cache_t *cache, war
     
     std::list<cache_event> events;
     FILE *pFile;
-    pFile = fopen("/root/benchmark_run/rodinia/3.1/cuda/bfs/cache.txt","a");//#bosheng: 0706 
+    pFile = fopen("./cache.txt","a");//#bosheng: 0706 
     //fprintf(pFile,"%p %p  \n",mf->get_pc(),mf->get_addr());
     fprintf(pFile,"%p  \n",mf->get_addr());
     fclose(pFile);
@@ -1402,8 +1444,6 @@ bool ldst_unit::memory_cycle( warp_inst_t &inst, mem_stage_stall_type &stall_rea
    assert( !inst.accessq_empty() );
    mem_stage_stall_type stall_cond = NO_RC_FAIL;
    const mem_access_t &access = inst.accessq_back();
-
-   
 
    bool bypassL1D = false; 
    if ( CACHE_GLOBAL == inst.cache_op || (m_L1D == NULL) ) {
@@ -2476,6 +2516,7 @@ void shader_core_ctx::cycle()
     issue();
     decode();
     fetch();
+    
 }
 
 // Flushes all content of the cache to memory
@@ -3205,7 +3246,7 @@ void simt_core_cluster::core_cycle()
     for( std::list<unsigned>::iterator it = m_core_sim_order.begin(); it != m_core_sim_order.end(); ++it ) {
         m_core[*it]->cycle();
     }
-
+    
     if (m_config->simt_core_sim_order == 1) {
         m_core_sim_order.splice(m_core_sim_order.end(), m_core_sim_order, m_core_sim_order.begin()); 
     }
