@@ -60,7 +60,7 @@
 
 /* READ_PACKET_SIZE:
    bytes: 6 address (flit can specify chanel so this gives up to ~2GB/channel, so good for now),
-          2 bytes   [shaderid + mshrid](14 bits) + req_size(0-2 bits if req_size variable) - so up to 2^14 = 16384 mshr total 
+          2 bytes   [shaderid + mshrid](14 bits) + req_size(0-2 bits if req_size variable) - so up to 2^14 = 162wwsw84 mshr total 
  */
 
 #define READ_PACKET_SIZE 8
@@ -1784,14 +1784,20 @@ public:
     //LSU & ALU status
     unsigned lsu_flag=0; // 0 --> free 1-->busy
     unsigned alu_flag=0;
-    int lsu_begin;
-    int lsu_end;
-    int lsu_time;
-    int alu_begin;
-    int alu_end;
-    int alu_time;
-    long total_lsu_time;
-    long total_alu_time;
+    int lsu_begin=0;
+    int lsu_end=0;
+    int lsu_time=0;
+    int alu_begin=0;
+    int alu_end=0;
+    int alu_time=0;
+    long total_lsu_time=0;
+    long total_alu_time=0;
+    // CTA retire check
+    unsigned cta_flag[8]={0};
+    int retire_time=0;
+    long total_retire_time=0;
+    int retire_begin=0;
+    int retire_end=0;
     // statistics 
     shader_core_stats *m_stats;
 
