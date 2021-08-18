@@ -1980,15 +1980,22 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num )
       m_n_active_cta--;
       m_barriers.deallocate_barrier(cta_num);
       shader_CTA_count_unlog(m_sid, 1);
-      if(cta_flag[cta_num]=1){
+      if(cta_flag[cta_num]==1){//bosheng0810
           retire_end=gpu_tot_sim_cycle+gpu_sim_cycle;
           retire_time=retire_end-retire_begin;
           total_retire_time=total_retire_time+retire_time;
-          cta_flag[cta_num]=0   ;
+          cta_flag[cta_num]=0;
+          cta_count[m_sid]++;
           FILE *cta_re;
-          cta_re = fopen("./cta_retire.txt","a");//#bosheng: 0810
+          cta_re = fopen("./cta_retire.txt","a");
           fprintf(cta_re," %d , %d , %d , %d , %ld\n",m_sid,retire_begin,retire_end, retire_time, total_retire_time);
           fclose(cta_re);
+          FILE *cta_ct;
+          cta_ct = fopen("./total_cta.txt","w");
+          for(int i=0;i<15;i++){
+              fprintf(cta_ct,"%d,%d\n",m_sid,cta_count[i]);
+          }
+          fclose(cta_ct);
       }
       
       printf("GPGPU-Sim uArch: Shader %d finished CTA #%d (%lld,%lld), %u CTAs running\n", m_sid, cta_num, gpu_sim_cycle, gpu_tot_sim_cycle,

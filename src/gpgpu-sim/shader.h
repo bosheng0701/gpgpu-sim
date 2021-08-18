@@ -1793,6 +1793,7 @@ public:
     long total_lsu_time=0;
     long total_alu_time=0;
     // CTA retire check
+    int cta_count[15]={0};
     unsigned cta_flag[8]={0};
     int retire_time=0;
     long total_retire_time=0;
