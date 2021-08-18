@@ -1987,7 +1987,7 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num )
           cta_flag[cta_num]=0;
           cta_count[m_sid]++;
           FILE *cta_re;
-          cta_re = fopen("./cta_retire.txt","a");
+          cta_re = fopen("./cta_retire.txt","a");//#bosheng0817
           fprintf(cta_re," %d , %d , %d , %d , %ld\n",m_sid,retire_begin,retire_end, retire_time, total_retire_time);
           fclose(cta_re);
           FILE *cta_ct;
