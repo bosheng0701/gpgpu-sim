@@ -1985,16 +1985,14 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num )
           retire_time=retire_end-retire_begin;
           total_retire_time=total_retire_time+retire_time;
           cta_flag[cta_num]=0;
-          cta_count[m_sid]++;
+          cta_count++;
           FILE *cta_re;
           cta_re = fopen("./cta_retire.txt","a");//#bosheng0817
           fprintf(cta_re," %d , %d , %d , %d , %ld\n",m_sid,retire_begin,retire_end, retire_time, total_retire_time);
           fclose(cta_re);
           FILE *cta_ct;
-          cta_ct = fopen("./total_cta.txt","w");
-          for(int i=0;i<15;i++){
-              fprintf(cta_ct,"%d,%d\n",m_sid,cta_count[i]);
-          }
+          cta_ct = fopen("./total_cta.txt","a");
+          fprintf(cta_ct,"%d,%d\n",m_sid,cta_count);
           fclose(cta_ct);
       }
       
