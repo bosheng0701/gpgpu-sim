@@ -595,7 +595,6 @@ void shader_core_ctx::decode()
 
 void shader_core_ctx::fetch()
 {
-    //printf("fetch(); \n");//bosheng0724
     if( !m_inst_fetch_buffer.m_valid ) {
         // find an active warp with space in instruction buffer that is not already waiting on a cache miss
         // and get next 1-2 instructions from i-cache...
@@ -605,7 +604,8 @@ void shader_core_ctx::fetch()
             // this code checks if this warp has finished executing and can be reclaimed
             if( m_warp[warp_id].hardware_done() && !m_scoreboard->pendingWrites(warp_id) && !m_warp[warp_id].done_exit() ) {
                 bool did_exit=false;
-               // printf("Cycle:%d Shader %d warp_id:%u cta_id:%u bosheng\n",gpu_sim_cycle + gpu_tot_sim_cycle,m_sid,warp_id,m_warp[warp_id].get_cta_id());//bosheng0724
+               // printf("Cycle:%d Shader %d warp_id:%u cta_id:%u bosheng\n",gpu_sim_cycle + gpu_tot_sim_cycle,m_sid,warp_id,m_warp[warp_id].get_cta_id());
+               //bosheng:0724 warp finished order
                 for( unsigned t=0; t<m_config->warp_size;t++) {
                     unsigned tid=warp_id*m_config->warp_size+t;
                     if( m_threadState[tid].m_active == true ) {
@@ -674,9 +674,6 @@ void shader_core_ctx::fetch()
 void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
 {
     execute_warp_inst_t(inst);
-    // FILE *pFile;
-    // pFile = fopen("/root/benchmark_run/rodinia/3.1/cuda/bfs/cache.txt","a");//#bosheng: 0706 
-    // fprintf(pFile,"%d: \n",inst.warp_id());
     if( inst.is_load() || inst.is_store() )
         inst.generate_mem_accesses();
 }
@@ -826,7 +823,7 @@ void scheduler_unit::cycle()
             m_shader->total_lsu_time=m_shader->total_lsu_time+m_shader->lsu_time;
             if(m_shader->lsu_time>100){
                 FILE *plsu;
-                plsu = fopen("./lsutime.txt","a");//#bosheng: 0810
+                plsu = fopen("./lsutime.txt","a");//#bosheng: 0810 get lsu use status
                 fprintf(plsu,"%d , %d , %d , %d ,%ld\n",m_shader->m_sid,m_shader->lsu_begin,m_shader->lsu_end, m_shader->lsu_time,m_shader->total_lsu_time);
                 fclose(plsu);
             }
@@ -846,7 +843,7 @@ void scheduler_unit::cycle()
             m_shader->total_alu_time=m_shader->total_alu_time+m_shader->alu_time;
             if(m_shader->alu_time>0){
                 FILE *palu;
-                palu = fopen("./alutime.txt","a");//#bosheng: 0810
+                palu = fopen("./alutime.txt","a");//#bosheng: 0810 get alu use status 
                 fprintf(palu,"%d , %d , %d , %d ,%ld \n",m_shader->m_sid,m_shader->alu_begin,m_shader->alu_end, m_shader->alu_time,m_shader->total_alu_time);
                 fclose(palu);
             }
@@ -1391,13 +1388,9 @@ mem_stage_stall_type ldst_unit::process_memory_access_queue( cache_t *cache, war
 
     //const mem_access_t &access = inst.accessq_back();
     mem_fetch *mf = m_mf_allocator->alloc(inst,inst.accessq_back());
-    
+   
     std::list<cache_event> events;
     FILE *pFile;
-    pFile = fopen("./cache.txt","a");//#bosheng: 0706 
-    //fprintf(pFile,"%p %p  \n",mf->get_pc(),mf->get_addr());
-    fprintf(pFile,"%p  \n",mf->get_addr());
-    fclose(pFile);
     enum cache_request_status status = cache->access(mf->get_addr(),mf,gpu_sim_cycle+gpu_tot_sim_cycle,events);
     return process_cache_access( cache, mf->get_addr(), inst, events, mf, status );
 }
@@ -1980,18 +1973,18 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num )
       m_n_active_cta--;
       m_barriers.deallocate_barrier(cta_num);
       shader_CTA_count_unlog(m_sid, 1);
-      if(cta_flag[cta_num]==1){//bosheng0810
+      if(cta_flag[cta_num]==1){//bosheng:0810  if cta deallocate the barrier then it will free cta ,we record the cta end time
           retire_end=gpu_tot_sim_cycle+gpu_sim_cycle;
           retire_time=retire_end-retire_begin;
           total_retire_time=total_retire_time+retire_time;
           cta_flag[cta_num]=0;
           cta_count++;
           FILE *cta_re;
-          cta_re = fopen("./cta_retire.txt","a");//#bosheng0817
+          cta_re = fopen("./cta_retire.txt","a");
           fprintf(cta_re," %d , %d , %d , %d , %ld\n",m_sid,retire_begin,retire_end, retire_time, total_retire_time);
           fclose(cta_re);
           FILE *cta_ct;
-          cta_ct = fopen("./total_cta.txt","a");
+          cta_ct = fopen("./total_cta.txt","a");//bosheng: calculate the each SM cta number
           fprintf(cta_ct,"%d,%d\n",m_sid,cta_count);
           fclose(cta_ct);
       }

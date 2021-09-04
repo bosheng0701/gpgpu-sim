@@ -732,7 +732,7 @@ public:
         m_wr_alloc_type = wr_alloc_type;
         m_wrbk_type = wrbk_type;
     }
-
+    
     virtual ~data_cache() {}
 
     virtual void init( mem_fetch_allocator *mfcreator )

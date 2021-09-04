@@ -326,7 +326,7 @@ void warp_inst_t::generate_mem_accesses()
     default:
         abort();
     }
-    warp_inst_t::warp_div =  m_accessq.size() - starting_queue_size;//bosheng:0326統計div生成
+    warp_inst_t::warp_div =  m_accessq.size() - starting_queue_size;//bosheng:0326統計div生成，利用
     warp_inst_t::begin_time = gpu_sim_cycle + gpu_tot_sim_cycle;//bosheng:03/19 change
     
     if( cache_block_size ) {

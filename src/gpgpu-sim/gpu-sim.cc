@@ -1048,9 +1048,9 @@ void shader_core_ctx::mem_instruction_stats(const warp_inst_t &inst)
  *    object that tells us which kernel to ask for a CTA from 
  */
 
-void shader_core_ctx::issue_block2core( kernel_info_t &kernel ) 
+void shader_core_ctx::issue_block2core( kernel_info_t &kernel ) // issued instruction(warp) allocate to cta
 {
-    set_max_cta(kernel);//bosheng0726
+    set_max_cta(kernel);//bosheng: set max cta size to kernel
 
     // find a free CTA context 
     unsigned  free_cta_hw_id=(unsigned)-1;
@@ -1098,15 +1098,12 @@ void shader_core_ctx::issue_block2core( kernel_info_t &kernel )
     // initialize the SIMT stacks and fetch hardware
     init_warps( free_cta_hw_id, start_thread, end_thread);
     m_n_active_cta++;
-   //bosheng0723  printf("%u--%u---%u*******\n",start_thread,end_thread ,m_n_active_cta);
 
     shader_CTA_count_log(m_sid, 1);
     printf("GPGPU-Sim uArch: core:%3d, cta:%2u initialized @(%lld,%lld)\n", m_sid, free_cta_hw_id, gpu_sim_cycle, gpu_tot_sim_cycle );
-    if(cta_flag[free_cta_hw_id]==0){
+    if(cta_flag[free_cta_hw_id]==0){//bosheng 0901 initialize the cta:num begin time
         retire_begin= gpu_sim_cycle+gpu_tot_sim_cycle;
-      //   printf("%d , %d, %d\n",m_sid,free_cta_hw_id,retire_begin);//bosheng0817
         cta_flag[free_cta_hw_id]=1;
-
     }
 }
 

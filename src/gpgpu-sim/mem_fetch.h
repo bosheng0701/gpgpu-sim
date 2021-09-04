@@ -71,9 +71,9 @@ public:
        }
    }
    void do_atomic();
-
    void print( FILE *fp, bool print_inst = true ) const;
-   short  mf_div = 35;// bosheng: 0319 change
+   short  mf_div = 35;// bosheng: 0319 memory div 
+   short  cache_num=0;
    const addrdec_t &get_tlx_addr() const { return m_raw_addr; }
    unsigned get_data_size() const { return m_data_size; }
    void     set_data_size( unsigned size ) { m_data_size=size; }
@@ -107,9 +107,7 @@ public:
    address_type get_pc() const { return m_inst.empty()?-1:m_inst.pc; }
    const warp_inst_t &get_inst() { return m_inst; }
    enum mem_fetch_status get_status() const { return m_status; }
-
    const memory_config *get_mem_config(){return m_mem_config;}
-
    unsigned get_num_flits(bool simt_to_mem);
 private:
    // request source information
@@ -117,7 +115,8 @@ private:
    unsigned m_sid;
    unsigned m_tpc;
    unsigned m_wid;
-
+   
+   
    // where is this request now?
    enum mem_fetch_status m_status;
    unsigned long long m_status_change;
