@@ -1100,7 +1100,7 @@ void shader_core_ctx::issue_block2core( kernel_info_t &kernel ) // issued instru
     m_n_active_cta++;
 
     shader_CTA_count_log(m_sid, 1);
-    printf("GPGPU-Sim uArch: core:%3d, cta:%2u initialized @(%lld,%lld)\n", m_sid, free_cta_hw_id, gpu_sim_cycle, gpu_tot_sim_cycle );
+   //  printf("GPGPU-Sim uArch: core:%3d, cta:%2u initialized @(%lld,%lld)\n", m_sid, free_cta_hw_id, gpu_sim_cycle, gpu_tot_sim_cycle );
     if(cta_flag[free_cta_hw_id]==0){//bosheng 0901 initialize the cta:num begin time
         retire_begin= gpu_sim_cycle+gpu_tot_sim_cycle;
         cta_flag[free_cta_hw_id]=1;
