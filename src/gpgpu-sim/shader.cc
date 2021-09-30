@@ -262,7 +262,7 @@ shader_core_ctx::shader_core_ctx( class gpgpu_sim *gpu,
     
     m_operand_collector.init( m_config->gpgpu_num_reg_banks, this );
     
-    // execute(to add ldst unit must change +1 -> +2) bosheng: 0912 ldst unit add
+    // execute(to add ldst unit must change +1 -> +2) bosheng:0912 ldst unit add
     m_num_function_units = m_config->gpgpu_num_sp_units + m_config->gpgpu_num_sfu_units + 1; // sp_unit, sfu, ldst_unit
     // m_num_function_units = m_config->gpgpu_num_sp_units + m_config->gpgpu_num_sfu_units + 2; //two ldst unit open
     //m_dispatch_port = new enum pipeline_stage_name_t[ m_num_function_units ];
@@ -325,6 +325,7 @@ void shader_core_ctx::init_warps( unsigned cta_id, unsigned start_thread, unsign
     if (m_config->model == POST_DOMINATOR) {
         unsigned start_warp = start_thread / m_config->warp_size;
         unsigned end_warp = end_thread / m_config->warp_size + ((end_thread % m_config->warp_size)? 1 : 0);
+        //printf("%d,%d\n",start_warp,end_warp);
         for (unsigned i = start_warp; i < end_warp; ++i) {
             unsigned n_active=0;
             simt_mask_t active_threads;
@@ -710,8 +711,39 @@ void shader_core_ctx::issue_warp( register_set& pipe_reg_set, const warp_inst_t*
 
 void shader_core_ctx::issue(){
     //really is issue;
+    
     for (unsigned i = 0; i < schedulers.size(); i++) {
+        // if((gpu_sim_cycle+gpu_tot_sim_cycle)/100>0&&(gpu_sim_cycle+gpu_tot_sim_cycle)%100==0){ //bosheng:0917 ipc detect warp throttling
+        //     aver_ipc[ipc_count]=(get_gpu()->gpu_sim_insn+get_gpu()->gpu_tot_sim_insn)/(gpu_sim_cycle+gpu_tot_sim_cycle);
+        //     ipc_count+=1;
+        //     if(ipc_count>10){
+        //         int ipc_curr=(get_gpu()->gpu_sim_insn+get_gpu()->gpu_tot_sim_insn)/(gpu_sim_cycle+gpu_tot_sim_cycle);
+        //         if(ipc_curr<(aver_ipc[ipc_count-1]+aver_ipc[ipc_count-2])/2&&stall_flag==0)
+        //         {
+                    
+        //             stall_flag+=10;
+        //         }
+        //     }
+        // // }
+        // if((gpu_sim_cycle+gpu_tot_sim_cycle)/1000>0&&(gpu_sim_cycle+gpu_tot_sim_cycle)%1000==0){// bosheng:0917 miss_rate detect
+        //     float miss_rate;
+        //     total_css.clear();
+        //     m_cluster->get_L1D_sub_stats(total_css);
+        //     if(total_css.accesses!=0)
+        //         miss_rate=(double)total_css.misses / (double)total_css.accesses;
+        //     if(miss_rate<1&& miss_rate>last_miss*1.2)stall_flag=16;
+        //     else if(miss_rate<1&& miss_rate>last_miss*1.1)stall_flag=8;
+        //     else if(miss_rate<1&& miss_rate>last_miss)stall_flag=4;
+        //     last_miss=miss_rate;
+        // }
+        
+        // if(stall_flag!=0)
+        // {
+        //     stall_flag-=1;
+        //     return;
+        // }else  
         schedulers[i]->cycle();
+    
     }
 }
 
@@ -814,7 +846,7 @@ void scheduler_unit::cycle()
     bool ready_inst = false;  // of the valid instructions, there was one not waiting for pending register writes
     bool issued_inst = false; // of these we issued one
     
-    if(!m_mem_out->has_free()){ //bosheng 0810
+    if(!m_mem_out->has_free()){ //bosheng:0810
         if(m_shader->lsu_flag==0){
             m_shader->lsu_begin=gpu_sim_cycle + gpu_tot_sim_cycle;
             m_shader->lsu_flag=1;
@@ -828,7 +860,7 @@ void scheduler_unit::cycle()
             m_shader->total_lsu_time=m_shader->total_lsu_time+m_shader->lsu_time;
             if(m_shader->lsu_time>100){
                 FILE *plsu;
-                plsu = fopen("./lsutime.txt","a");//#bosheng: 0810 get lsu use status
+                plsu = fopen("./lsutime.txt","a");//#bosheng:0810 get lsu use status
                 fprintf(plsu,"%d , %d , %d , %d ,%ld\n",m_shader->m_sid,m_shader->lsu_begin,m_shader->lsu_end, m_shader->lsu_time,m_shader->total_lsu_time);
                 fclose(plsu);
             }
@@ -848,18 +880,17 @@ void scheduler_unit::cycle()
             m_shader->total_alu_time=m_shader->total_alu_time+m_shader->alu_time;
             if(m_shader->alu_time>0){
                 FILE *palu;
-                palu = fopen("./alutime.txt","a");//#bosheng: 0810 get alu use status 
+                palu = fopen("./alutime.txt","a");//#bosheng:0810 get alu use status 
                 fprintf(palu,"%d , %d , %d , %d ,%ld \n",m_shader->m_sid,m_shader->alu_begin,m_shader->alu_end, m_shader->alu_time,m_shader->total_alu_time);
                 fclose(palu);
             }
             m_shader->alu_flag=0;
         }
     }
-
     order_warps(); // LRR schedule 
     for ( std::vector< shd_warp_t* >::const_iterator iter = m_next_cycle_prioritized_warps.begin();
           iter != m_next_cycle_prioritized_warps.end();
-          iter++ ) {
+          iter++ ) {  
         // Don't consider warps that are not yet valid
         if ( (*iter) == NULL || (*iter)->done_exit() ) {
             continue;
@@ -869,7 +900,7 @@ void scheduler_unit::cycle()
         unsigned warp_id = (*iter)->get_warp_id();
         unsigned checked=0;
         unsigned issued=0;
-        unsigned max_issue = m_shader->m_config->gpgpu_max_insn_issue_per_warp;
+        unsigned max_issue = m_shader->m_config->gpgpu_max_insn_issue_per_warp;          
         while( !warp(warp_id).waiting() && !warp(warp_id).ibuffer_empty() && (checked < max_issue) && (checked <= issued) && (issued < max_issue) ) {
             const warp_inst_t *pI = warp(warp_id).ibuffer_next_inst();
             bool valid = warp(warp_id).ibuffer_next_valid();
@@ -881,6 +912,11 @@ void scheduler_unit::cycle()
                            ptx_get_insn_str( pc).c_str() );
             if( pI ) {
                 assert(valid);
+                //  if ( (pI->op == LOAD_OP) || (pI->op == STORE_OP) || (pI->op == MEMORY_BARRIER_OP) )
+                //     {
+                //         m_shader->stall_flag-=1;
+                //         if(m_shader->stall_flag>0)break;
+                //     }//
                 if( pc != pI->pc ) {
                     SCHED_DPRINTF( "Warp (warp_id %u, dynamic_warp_id %u) control hazard instruction flush\n",
                                    (*iter)->get_warp_id(), (*iter)->get_dynamic_warp_id() );
@@ -896,7 +932,7 @@ void scheduler_unit::cycle()
                         const active_mask_t &active_mask = m_simt_stack[warp_id]->get_active_mask();
                         assert( warp(warp_id).inst_in_pipeline() );
                         if ( (pI->op == LOAD_OP) || (pI->op == STORE_OP) || (pI->op == MEMORY_BARRIER_OP) ) {
-                            if( m_mem_out->has_free() ) {
+                            if( m_mem_out->has_free()) {
                                 m_shader->issue_warp(*m_mem_out,pI,active_mask,warp_id);
                                 issued++;
                                 issued_inst=true;
@@ -931,12 +967,15 @@ void scheduler_unit::cycle()
                warp(warp_id).set_next_pc(pc);
                warp(warp_id).ibuffer_flush();
             }
+           
             if(warp_inst_issued) {
                 SCHED_DPRINTF( "Warp (warp_id %u, dynamic_warp_id %u) issued %u instructions\n",
                                (*iter)->get_warp_id(),
                                (*iter)->get_dynamic_warp_id(),
                                issued );
                 do_on_warp_issued( warp_id, issued, iter );
+                // printf("%d,",m_shader->get_sid());
+                // std::cout<< m_shader.<<std::endl;
             }
             checked++;
         }
@@ -1239,12 +1278,12 @@ void ldst_unit::get_cache_stats(cache_stats &cs) {
         cs += m_L1T->get_stats();
 
 }
-int L1_req_div[35]={0}; //bosheng: 0324  create a array to store the total number of L1D diverse hit  
+int L1_req_div[35]={0}; //bosheng:0324  create a array to store the total number of L1D diverse hit  
 void ldst_unit::get_L1D_sub_stats(struct cache_sub_stats &css) const{
     if(m_L1D)
         m_L1D->get_sub_stats(css);
     
-    for(int i=1;i<33;i++){//bosheng: 0324 sum each SM L1D cache diverse(1~32) hit 
+    for(int i=1;i<33;i++){//bosheng:0324 sum each SM L1D cache diverse(1~32) hit 
         L1_req_div[i]+=*(m_L1D->L1_request_div_hit+i);
         //printf("%d. %d ",i,L1_req_div[i]);
     }
@@ -1261,10 +1300,10 @@ void ldst_unit::get_L1T_sub_stats(struct cache_sub_stats &css) const{
 
 void shader_core_ctx::warp_inst_complete(const warp_inst_t &inst)
 {
-   #if 0
-      printf("[warp_inst_complete] uid=%u core=%u warp=%u pc=%#x @ time=%llu issued@%llu\n", 
-             inst.get_uid(), m_sid, inst.warp_id(), inst.pc, gpu_tot_sim_cycle + gpu_sim_cycle, inst.get_issue_cycle()); 
-   #endif
+//    #if 1
+//       printf("[warp_inst_complete] uid=%u core=%u warp=%u pc=%#x @ time=%llu issued@%llu\n", 
+//              inst.get_uid(), m_sid, inst.warp_id(), inst.pc, gpu_tot_sim_cycle + gpu_sim_cycle, inst.get_issue_cycle()); 
+//    #endif
   if(inst.op_pipe==SP__OP)
 	  m_stats->m_num_sp_committed[m_sid]++;
   else if(inst.op_pipe==SFU__OP)
@@ -1762,7 +1801,7 @@ void ldst_unit::writeback()
             m_last_inst_gpu_tot_sim_cycle = gpu_tot_sim_cycle;
         }
     }
-
+   
     unsigned serviced_client = -1; 
     for( unsigned c = 0; m_next_wb.empty() && (c < m_num_writeback_clients); c++ ) {
         unsigned next_client = (c+m_writeback_arb)%m_num_writeback_clients;
@@ -1989,7 +2028,7 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num )
           fprintf(cta_re," %d , %d , %d , %d , %ld\n",m_sid,retire_begin,retire_end, retire_time, total_retire_time);
           fclose(cta_re);
           FILE *cta_ct;
-          cta_ct = fopen("./total_cta.txt","a");//bosheng: calculate the each SM cta number
+          cta_ct = fopen("./total_cta.txt","a");//bosheng:0810 calculate the each SM cta number
           fprintf(cta_ct,"%d,%d\n",m_sid,cta_count);
           fclose(cta_ct);
       }
@@ -2116,13 +2155,14 @@ void gpgpu_sim::shader_print_cache_stats( FILE *fout ) const{
         fprintf(fout, "\tL1D_total_cache_accesses = %u\n", total_css.accesses);
         fprintf(fout, "\tL1D_total_cache_misses = %u\n", total_css.misses);
         if(total_css.accesses > 0){
+            //l1_miss_rate=(double)total_css.misses / (double)total_css.accesses;
             fprintf(fout, "\tL1D_total_cache_miss_rate = %.4lf\n", (double)total_css.misses / (double)total_css.accesses);
         }
         fprintf(fout, "\tL1D_total_cache_pending_hits = %u\n", total_css.pending_hits);
         fprintf(fout, "\tL1D_total_cache_reservation_fails = %u\n", total_css.res_fails);
         total_css.print_port_stats(fout, "\tL1D_cache"); 
         for(int i=1;i<33;i++){
-            printf("%d. %d ",i,L1_req_div[i]);// bosheng: 0324
+            printf("%d. %d ",i,L1_req_div[i]);// bosheng:0324
         }
         printf("\n");
         memset(L1_req_div,0, sizeof(L1_req_div));
@@ -2631,6 +2671,7 @@ barrier_set_t::barrier_set_t(shader_core_ctx *shader,unsigned max_warps_per_core
    m_warp_size = warp_size;
    m_shader = shader;
    if( max_warps_per_core > WARP_PER_CTA_MAX ) {
+
       printf("ERROR ** increase WARP_PER_CTA_MAX in shader.h from %u to >= %u or warps per cta in gpgpusim.config\n",
              WARP_PER_CTA_MAX, max_warps_per_core );
       exit(1);
@@ -3046,7 +3087,7 @@ int register_bank(int regnum, int wid, unsigned num_banks, unsigned bank_warp_sh
 }
 
 bool opndcoll_rfu_t::writeback( const warp_inst_t &inst )
-{   //bosheng: 0909 register writeback
+{   //bosheng:0909 register writeback
    assert( !inst.empty() );
    std::list<unsigned> regs = m_shader->get_regs_written(inst);
    std::list<unsigned>::iterator r;
@@ -3076,6 +3117,13 @@ bool opndcoll_rfu_t::writeback( const warp_inst_t &inst )
 	    	  m_shader->incregfile_writes(m_shader->get_config()->warp_size);//inst.active_count());
 	      }
    }
+   int latency=gpu_sim_cycle+gpu_tot_sim_cycle-inst.begin_time;
+   FILE * ptr;
+   ptr=fopen("./latencyL1L2.csv","a");//bosheng:0914 from issue to writeback 
+   if(inst.op_pipe==MEM__OP && inst.warp_div>0){
+       fprintf(ptr,"%d,%d,%d,%d,%d,%d,%d\n",m_shader->get_sid(),inst.warp_id(),inst.pc,inst.warp_div,inst.get_issue_cycle(),gpu_sim_cycle+gpu_tot_sim_cycle,latency);
+   }
+        fclose(ptr);
    return true;
 }
 

@@ -828,6 +828,7 @@ public:
     int warp_div; //TODO:03/19 change
     // modifiers
     int begin_time;
+    
     void broadcast_barrier_reduction( const active_mask_t& access_mask);
     void do_atomic(bool forceDo=false);
     void do_atomic( const active_mask_t& access_mask, bool forceDo=false );
@@ -884,7 +885,7 @@ public:
            return false;
         }
     };
-
+    
     void generate_mem_accesses();
     void memory_coalescing_arch_13( bool is_write, mem_access_type access_type );
     void memory_coalescing_arch_13_atomic( bool is_write, mem_access_type access_type );
@@ -964,10 +965,10 @@ public:
 
     void print( FILE *fout ) const;
     unsigned get_uid() const { return m_uid; }
-
-
+    unsigned get_issue_cycle() const{return issue_cycle;}//bosheng:0914 get issue cycle begin time 
+   
 protected:
-
+    
     unsigned m_uid;
     bool m_empty;
     bool m_cache_hit;

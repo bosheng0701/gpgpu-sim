@@ -326,7 +326,7 @@ void warp_inst_t::generate_mem_accesses()
     default:
         abort();
     }
-    warp_inst_t::warp_div =  m_accessq.size() - starting_queue_size;//bosheng:0326統計div生成，利用
+    warp_inst_t::warp_div =  m_accessq.size() - starting_queue_size;//bosheng:0326統計div生成
     warp_inst_t::begin_time = gpu_sim_cycle + gpu_tot_sim_cycle;//bosheng:03/19 change
     
     if( cache_block_size ) {
@@ -344,6 +344,7 @@ void warp_inst_t::generate_mem_accesses()
             for( unsigned i=0; i < data_size; i++ ) 
                 byte_mask.set(idx+i);
         }
+       
         for( a=accesses.begin(); a != accesses.end(); ++a ) 
             m_accessq.push_back( mem_access_t(access_type,a->first,cache_block_size,is_write,a->second,byte_mask) );
     }
@@ -794,7 +795,6 @@ void core_t::execute_warp_inst_t(warp_inst_t &inst, unsigned warpId)
                 warpId = inst.warp_id();
             unsigned tid=m_warp_size*warpId+t;
             m_thread[tid]->ptx_exec_inst(inst,t);
-            
             //virtual function
             checkExecutionStatusAndUpdate(inst,t,tid);
         }

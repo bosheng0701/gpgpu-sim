@@ -28,6 +28,7 @@
 #include "gpu-cache.h"
 #include "stat-tool.h"
 #include <assert.h>
+#include<iostream>
 
 #define MAX_DEFAULT_CACHE_SIZE_MULTIBLIER 4
 // used to allocate memory that is large enough to adapt the changes in cache size across kernels
@@ -701,6 +702,7 @@ void baseline_cache::fill(mem_fetch *mf, unsigned time){
     assert( e != m_extra_mf_fields.end() );
     assert( e->second.m_valid );
     mf->set_data_size( e->second.m_data_size );
+    //printf("%d,%d-bobo\n",e->first->get_data_size(),e->second.m_data_size);//bosheng:0915 data_size
     if ( m_config.m_alloc_policy == ON_MISS )
         m_tag_array->fill(e->second.m_cache_index,time);
     else if ( m_config.m_alloc_policy == ON_FILL )
@@ -995,14 +997,9 @@ read_only_cache::access( new_addr_type addr,
     unsigned cache_index = (unsigned)-1;
     enum cache_request_status status = m_tag_array->probe(block_addr,cache_index);
     enum cache_request_status cache_status = RESERVATION_FAIL;
-    FILE *F_latency;//bosheng:0831 record L1 and L2 data cache time from generation to Hit 
-    // F_latency=fopen("./latencyL1L2.txt","a");
+    
     if ( status == HIT ) {
         cache_status = m_tag_array->access(block_addr,time,cache_index); // update LRU state
-        // if(cache_status==HIT&& mf->get_pc()!=-1){//bosheng: 0902 add readonly_cache to latency
-        // fprintf(F_latency,"%d,%d\n",mf->get_pc(),(time-mf->get_timestamp()));
-        // fclose(F_latency);
-        // }
     }else if ( status != RESERVATION_FAIL ) {
         if(!miss_queue_full(0)){
             bool do_miss=false;
@@ -1038,13 +1035,13 @@ data_cache::process_tag_probe( bool wr,
     // data_cache constructor to reflect the corresponding cache configuration
     // options. Function pointers were used to avoid many long conditional
     // branches resulting from many cache configuration options.
-    FILE *F_latency;//bosheng:0831 record L1 and L2 data cache time from generation to Hit 
-    F_latency=fopen("./latencyL1L2.txt","a");
+    //FILE *F_latency;//bosheng:0831 record L1 and L2 data cache time from generation to Hit 
+    //F_latency=fopen("./latencyL1L2.txt","a");
     cache_request_status access_status = probe_status;
     if(wr){ // Write
         if(probe_status == HIT){
-            if(mf->get_pc()!=-1)
-            fprintf(F_latency,"%d,%d,%d,%d,%d\n",mf->cache_num,mf->get_pc(),(time),mf->get_timestamp(),time-mf->get_timestamp());//bosheng:0831 record L1 and L2 data cache time from generation to Hit 
+            //if(mf->get_pc()!=-1)
+            //fprintf(F_latency,"%d,%d,%d,%d,%d\n",mf->cache_num,mf->get_pc(),(time),mf->get_timestamp(),time-mf->get_timestamp());//bosheng:0831 record L1 and L2 data cache time from generation to Hit 
             access_status = (this->*m_wr_hit)( addr,
                                       cache_index,
                                       mf, time, events, probe_status );
@@ -1055,8 +1052,8 @@ data_cache::process_tag_probe( bool wr,
         }
     }else{ // Read
         if(probe_status == HIT){
-            if(mf->get_pc()!=-1)
-            fprintf(F_latency,"%d,%d,%d,%d,%d\n",mf->cache_num,mf->get_pc(),(time),mf->get_timestamp(),time-mf->get_timestamp());
+            //if(mf->get_pc()!=-1)
+            //fprintf(F_latency,"%d,%d,%d,%d,%d\n",mf->cache_num,mf->get_pc(),(time),mf->get_timestamp(),time-mf->get_timestamp());
             access_status = (this->*m_rd_hit)( addr,
                                       cache_index,
                                       mf, time, events, probe_status );
@@ -1066,7 +1063,7 @@ data_cache::process_tag_probe( bool wr,
                                        mf, time, events, probe_status );
         }
     }
-    fclose(F_latency);
+    //fclose(F_latency);
     m_bandwidth_management.use_data_port(mf, access_status, events); 
     return access_status;
 }
@@ -1077,7 +1074,7 @@ data_cache::process_tag_probe( bool wr,
 // Both the L1 and L2 override this function to provide a means of
 // performing actions specific to each cache when such actions are implemnted.
 
-int cache_flag=0 ;// bosheng: 0 -> l1cache_access  1 -> l2cache_access (to know which cache access)
+int cache_flag=0 ;// bosheng:0324 0 -> l1cache_access  1 -> l2cache_access (to know which cache access)
 
 enum cache_request_status
 data_cache::access( new_addr_type addr,
@@ -1089,6 +1086,11 @@ data_cache::access( new_addr_type addr,
     bool wr = mf->get_is_write();
     new_addr_type block_addr = m_config.block_addr(addr);
     unsigned cache_index = (unsigned)-1;
+    // if(cache_flag==1){
+    //     std::cout<<std::hex;
+    //     std::cout<< addr<<std::endl;
+    // }
+    
     enum cache_request_status probe_status
         = m_tag_array->probe( block_addr, cache_index );
     enum cache_request_status access_status
@@ -1112,7 +1114,7 @@ l1_cache::access( new_addr_type addr,
                   unsigned time,
                   std::list<cache_event> &events )
 {
-    cache_flag=0;//bosheng: 0324
+    cache_flag=0;//bosheng:0324
     mf->cache_num=1;
     return data_cache::access( addr, mf, time, events );
 }
@@ -1126,7 +1128,7 @@ l2_cache::access( new_addr_type addr,
                   unsigned time,
                   std::list<cache_event> &events )
 {
-    cache_flag=1;//bosheng: 0324
+    cache_flag=1;//bosheng:0324
     mf->cache_num=2;
     return data_cache::access( addr, mf, time, events );
 }

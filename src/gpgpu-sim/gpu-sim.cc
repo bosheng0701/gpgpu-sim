@@ -1101,7 +1101,7 @@ void shader_core_ctx::issue_block2core( kernel_info_t &kernel ) // issued instru
 
     shader_CTA_count_log(m_sid, 1);
    //  printf("GPGPU-Sim uArch: core:%3d, cta:%2u initialized @(%lld,%lld)\n", m_sid, free_cta_hw_id, gpu_sim_cycle, gpu_tot_sim_cycle );
-    if(cta_flag[free_cta_hw_id]==0){//bosheng 0901 initialize the cta:num begin time
+    if(cta_flag[free_cta_hw_id]==0){//bosheng:0901 initialize the cta:num begin time
         retire_begin= gpu_sim_cycle+gpu_tot_sim_cycle;
         cta_flag[free_cta_hw_id]=1;
     }
@@ -1175,7 +1175,9 @@ void gpgpu_sim::cycle()
                 unsigned response_size = mf->get_is_write()?mf->get_ctrl_size():mf->size();
                 if ( ::icnt_has_buffer( m_shader_config->mem2device(i), response_size ) ) {
                     if (!mf->get_is_write()) 
-                       mf->set_return_timestamp(gpu_sim_cycle+gpu_tot_sim_cycle);
+                       mf->set_return_timestamp(gpu_sim_cycle+gpu_tot_sim_cycle);//200913
+                    //if(mf->get_pc()!=-1)
+                        //printf("%d,%d,%d,%d,%d--bobo\n",mf->cache_num,mf->get_pc(),gpu_sim_cycle+gpu_tot_sim_cycle,mf->get_timestamp(),gpu_sim_cycle+gpu_tot_sim_cycle-mf->get_timestamp());
                     mf->set_status(IN_ICNT_TO_SHADER,gpu_sim_cycle+gpu_tot_sim_cycle);
                     ::icnt_push( m_shader_config->mem2device(i), mf->get_tpc(), mf, response_size );
                     m_memory_sub_partition[i]->pop();

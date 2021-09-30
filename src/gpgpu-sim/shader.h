@@ -267,7 +267,7 @@ private:
 inline unsigned hw_tid_from_wid(unsigned wid, unsigned warp_size, unsigned i){return wid * warp_size + i;};
 inline unsigned wid_from_hw_tid(unsigned tid, unsigned warp_size){return tid/warp_size;};
 
-const unsigned WARP_PER_CTA_MAX = 48;
+const unsigned WARP_PER_CTA_MAX = 48;//bosheng:0915 set max warp
 typedef std::bitset<WARP_PER_CTA_MAX> warp_set_t;
 
 int register_bank(int regnum, int wid, unsigned num_banks, unsigned bank_warp_shift);
@@ -1801,7 +1801,11 @@ public:
     int retire_end=0;
     // statistics 
     shader_core_stats *m_stats;
+    int stall_flag=0;
+    int ipc_count=0;
+    double last_miss=1;
 
+    cache_sub_stats total_css;
     // CTA scheduling / hardware thread allocation
     unsigned m_n_active_cta; // number of Cooperative Thread Arrays (blocks) currently running on this shader.
     unsigned m_cta_status[MAX_CTA_PER_SHADER]; // CTAs status 

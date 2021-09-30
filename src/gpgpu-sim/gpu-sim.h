@@ -488,7 +488,7 @@ public:
    unsigned long long  gpu_tot_sim_insn;
    unsigned long long  gpu_sim_insn_last_update;
    unsigned gpu_sim_insn_last_update_sid;
-
+   float l1_miss_rate; //bosheng: 0901
 
 
    FuncCache get_cache_config(std::string kernel_name);
