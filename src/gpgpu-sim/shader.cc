@@ -887,6 +887,14 @@ void scheduler_unit::cycle()
             m_shader->alu_flag=0;
         }
     }
+    if( m_shader->alu_flag==0&&m_shader->lsu_flag==0){
+        m_shader->issue_begin=gpu_sim_cycle + gpu_tot_sim_cycle;
+    }
+    else{
+        m_shader->issue_end=gpu_sim_cycle + gpu_tot_sim_cycle;
+        m_shader->can_not_issue=m_shader->can_not_issue+m_shader->issue_end-m_shader->issue_begin;
+        m_stats->issue_percent[m_shader->m_sid]=(m_shader->can_not_issue/(gpu_sim_cycle + gpu_tot_sim_cycle));
+    }
     order_warps(); // LRR schedule 
     for ( std::vector< shd_warp_t* >::const_iterator iter = m_next_cycle_prioritized_warps.begin();
           iter != m_next_cycle_prioritized_warps.end();
@@ -1285,9 +1293,7 @@ void ldst_unit::get_L1D_sub_stats(struct cache_sub_stats &css) const{
     
     for(int i=1;i<33;i++){//bosheng:0324 sum each SM L1D cache diverse(1~32) hit 
         L1_req_div[i]+=*(m_L1D->L1_request_div_hit+i);
-        //printf("%d. %d ",i,L1_req_div[i]);
     }
-    //printf("\n");
 }
 void ldst_unit::get_L1C_sub_stats(struct cache_sub_stats &css) const{
     if(m_L1C)
@@ -2149,7 +2155,7 @@ void gpgpu_sim::shader_print_cache_stats( FILE *fout ) const{
 
             fprintf( stdout, "\tL1D_cache_core[%d]: Access = %d, Miss = %d, Miss_rate = %.3lf, Pending_hits = %u, Reservation_fails = %u\n",
                      i, css.accesses, css.misses, (double)css.misses / (double)css.accesses, css.pending_hits, css.res_fails);
-
+             fprintf( stdout,"\tCan_issue_percent[%d]:%d%%\n",i,m_shader_stats->issue_percent[i]);
             total_css += css;
         }
         fprintf(fout, "\tL1D_total_cache_accesses = %u\n", total_css.accesses);

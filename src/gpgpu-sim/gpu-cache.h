@@ -451,7 +451,6 @@ struct cache_sub_stats{
     unsigned misses;
     unsigned pending_hits;
     unsigned res_fails;
-    int L1_req_div[35]={0};
     unsigned long long port_available_cycles; 
     unsigned long long data_port_busy_cycles; 
     unsigned long long fill_port_busy_cycles; 
@@ -467,8 +466,7 @@ struct cache_sub_stats{
         res_fails = 0;
         port_available_cycles = 0; 
         data_port_busy_cycles = 0; 
-        fill_port_busy_cycles = 0; 
-        memset(L1_req_div, 0, sizeof(L1_req_div));
+        fill_port_busy_cycles = 0;   
     }
     cache_sub_stats &operator+=(const cache_sub_stats &css){
         ///

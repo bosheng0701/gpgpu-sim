@@ -882,7 +882,7 @@ void gpgpu_sim::clear_executed_kernel_info()
 void gpgpu_sim::gpu_print_stat() 
 {  
    FILE *statfout = stdout; 
-
+   
    std::string kernel_info_str = executed_kernel_info_string(); 
    fprintf(statfout, "%s", kernel_info_str.c_str()); 
 

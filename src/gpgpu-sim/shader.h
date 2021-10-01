@@ -1405,6 +1405,9 @@ struct shader_core_stats_pod {
     unsigned *gpgpu_n_shmem_bank_access;
     long *n_simt_to_mem; // Interconnect power stats
     long *n_mem_to_simt;
+
+    //bosheng:1001 issue stats
+    int issue_percent[16]={0}; 
 };
 
 class shader_core_stats : public shader_core_stats_pod {
@@ -1792,6 +1795,11 @@ public:
     int alu_time=0;
     long total_lsu_time=0;
     long total_alu_time=0;
+    // can not issue warp 
+    int issue_flag=0;
+    int issue_begin=0;
+    int issue_end=0;
+    long can_not_issue=0;
     // CTA retire check
     int cta_count=0;
     unsigned cta_flag[16]={0};
