@@ -444,7 +444,7 @@ void cache_stats::inc_stats(int access_type, int access_outcome){
     ///
     if(!check_valid(access_type, access_outcome))
         assert(0 && "Unknown cache access type or access outcome");
-
+    
     m_stats[access_type][access_outcome]++;
 }
 
@@ -1054,6 +1054,9 @@ data_cache::process_tag_probe( bool wr,
         if(probe_status == HIT){
             //if(mf->get_pc()!=-1)
             //fprintf(F_latency,"%d,%d,%d,%d,%d\n",mf->cache_num,mf->get_pc(),(time),mf->get_timestamp(),time-mf->get_timestamp());
+            if (mf->cache_num==1&&mf->get_pc()!=-1){
+                printf("%d\n",time-mf->get_m_begin_time());
+            }
             access_status = (this->*m_rd_hit)( addr,
                                       cache_index,
                                       mf, time, events, probe_status );
@@ -1085,19 +1088,14 @@ data_cache::access( new_addr_type addr,
     assert( mf->get_data_size() <= m_config.get_line_sz());
     bool wr = mf->get_is_write();
     new_addr_type block_addr = m_config.block_addr(addr);
-    unsigned cache_index = (unsigned)-1;
-    // if(cache_flag==1){
-    //     std::cout<<std::hex;
-    //     std::cout<< addr<<std::endl;
-    // }
-    
+    unsigned cache_index = (unsigned)-1;   
     enum cache_request_status probe_status
         = m_tag_array->probe( block_addr, cache_index );
     enum cache_request_status access_status
         = process_tag_probe( wr, probe_status, addr, cache_index, mf, time, events );
-    //printf("%d ",cache_flag);
     if(cache_flag == 0 && access_status == 0 && (mf->mf_div < 33 && mf->mf_div > 0 )){ //可能prob時候HIT  access的時候write會出現reserve faile bosheng:0319 change
         *(L1_request_div_hit+mf->mf_div)+=1;//bosheng:0324
+        
     }    
     m_stats.inc_stats(mf->get_access_type(),
         m_stats.select_stats_status(probe_status, access_status));
