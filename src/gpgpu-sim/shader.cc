@@ -846,55 +846,47 @@ void scheduler_unit::cycle()
     bool ready_inst = false;  // of the valid instructions, there was one not waiting for pending register writes
     bool issued_inst = false; // of these we issued one
     
-    if(!m_mem_out->has_free()){ //bosheng:0810
-        if(m_shader->lsu_flag==0){
-            m_shader->lsu_begin=gpu_sim_cycle + gpu_tot_sim_cycle;
-            m_shader->lsu_flag=1;
+    // if(!m_mem_out->has_free()){ //bosheng:0810
+    //     if(m_shader->lsu_flag==0){
+    //         m_shader->lsu_begin=gpu_sim_cycle + gpu_tot_sim_cycle;
+    //         m_shader->lsu_flag=1;
           
-        }      
-    }
-    else if(m_mem_out->has_free()) {
-        if(m_shader->lsu_flag==1){
-            m_shader->lsu_end=gpu_sim_cycle + gpu_tot_sim_cycle;
-            m_shader->lsu_time= m_shader->lsu_end - m_shader->lsu_begin;
-            m_shader->total_lsu_time=m_shader->total_lsu_time+m_shader->lsu_time;
-            if(m_shader->lsu_time>100){
-                FILE *plsu;
-                plsu = fopen("./lsutime.txt","a");//#bosheng:0810 get lsu use status
-                fprintf(plsu,"%d , %d , %d , %d ,%ld\n",m_shader->m_sid,m_shader->lsu_begin,m_shader->lsu_end, m_shader->lsu_time,m_shader->total_lsu_time);
-                fclose(plsu);
-            }
-            m_shader->lsu_flag=0;
-        }
-    }
-    if(!m_sp_out->has_free()){
-        if(m_shader->alu_flag==0){
-            m_shader->alu_begin=gpu_sim_cycle + gpu_tot_sim_cycle;
-            m_shader->alu_flag=1;
-        }
-    }
-    else if(m_sp_out->has_free()) {
-        if(m_shader->alu_flag==1){
-            m_shader->alu_end=gpu_sim_cycle + gpu_tot_sim_cycle;
-            m_shader->alu_time= m_shader->alu_end - m_shader->alu_begin;
-            m_shader->total_alu_time=m_shader->total_alu_time+m_shader->alu_time;
-            if(m_shader->alu_time>0){
-                FILE *palu;
-                palu = fopen("./alutime.txt","a");//#bosheng:0810 get alu use status 
-                fprintf(palu,"%d , %d , %d , %d ,%ld \n",m_shader->m_sid,m_shader->alu_begin,m_shader->alu_end, m_shader->alu_time,m_shader->total_alu_time);
-                fclose(palu);
-            }
-            m_shader->alu_flag=0;
-        }
-    }
-    if( m_shader->alu_flag==0&&m_shader->lsu_flag==0){
-        m_shader->issue_begin=gpu_sim_cycle + gpu_tot_sim_cycle;
-    }
-    else{
-        m_shader->issue_end=gpu_sim_cycle + gpu_tot_sim_cycle;
-        m_shader->can_not_issue=m_shader->can_not_issue+m_shader->issue_end-m_shader->issue_begin;
-        m_stats->issue_percent[m_shader->m_sid]=(m_shader->can_not_issue/(gpu_sim_cycle + gpu_tot_sim_cycle));
-    }
+    //     }      
+    // }
+    // else if(m_mem_out->has_free()) {
+    //     if(m_shader->lsu_flag==1){
+    //         m_shader->lsu_end=gpu_sim_cycle + gpu_tot_sim_cycle;
+    //         m_shader->lsu_time= m_shader->lsu_end - m_shader->lsu_begin;
+    //         m_shader->total_lsu_time=m_shader->total_lsu_time+m_shader->lsu_time;
+    //         if(m_shader->lsu_time>100){
+    //             FILE *plsu;
+    //             plsu = fopen("./lsutime.txt","a");//#bosheng:0810 get lsu use status
+    //             fprintf(plsu,"%d , %d , %d , %d ,%ld\n",m_shader->m_sid,m_shader->lsu_begin,m_shader->lsu_end, m_shader->lsu_time,m_shader->total_lsu_time);
+    //             fclose(plsu);
+    //         }
+    //         m_shader->lsu_flag=0;
+    //     }
+    // }
+    // if(!m_sp_out->has_free()){
+    //     if(m_shader->alu_flag==0){
+    //         m_shader->alu_begin=gpu_sim_cycle + gpu_tot_sim_cycle;
+    //         m_shader->alu_flag=1;
+    //     }
+    // }
+    // else if(m_sp_out->has_free()) {
+    //     if(m_shader->alu_flag==1){
+    //         m_shader->alu_end=gpu_sim_cycle + gpu_tot_sim_cycle;
+    //         m_shader->alu_time= m_shader->alu_end - m_shader->alu_begin;
+    //         m_shader->total_alu_time=m_shader->total_alu_time+m_shader->alu_time;
+    //         if(m_shader->alu_time>0){
+    //             FILE *palu;
+    //             palu = fopen("./alutime.txt","a");//#bosheng:0810 get alu use status 
+    //             fprintf(palu,"%d , %d , %d , %d ,%ld \n",m_shader->m_sid,m_shader->alu_begin,m_shader->alu_end, m_shader->alu_time,m_shader->total_alu_time);
+    //             fclose(palu);
+    //         }
+    //         m_shader->alu_flag=0;
+    //     }
+    // }
     order_warps(); // LRR schedule 
     for ( std::vector< shd_warp_t* >::const_iterator iter = m_next_cycle_prioritized_warps.begin();
           iter != m_next_cycle_prioritized_warps.end();
@@ -920,11 +912,6 @@ void scheduler_unit::cycle()
                            ptx_get_insn_str( pc).c_str() );
             if( pI ) {
                 assert(valid);
-                //  if ( (pI->op == LOAD_OP) || (pI->op == STORE_OP) || (pI->op == MEMORY_BARRIER_OP) )
-                //     {
-                //         m_shader->stall_flag-=1;
-                //         if(m_shader->stall_flag>0)break;
-                //     }//
                 if( pc != pI->pc ) {
                     SCHED_DPRINTF( "Warp (warp_id %u, dynamic_warp_id %u) control hazard instruction flush\n",
                                    (*iter)->get_warp_id(), (*iter)->get_dynamic_warp_id() );
@@ -933,36 +920,65 @@ void scheduler_unit::cycle()
                     warp(warp_id).ibuffer_flush();
                 } else {
                     valid_inst = true;
+                    if(m_shader->idle_flag==1){
+                        m_shader->idle_end=gpu_sim_cycle + gpu_tot_sim_cycle;
+                        m_stats->idle[m_shader->m_sid]+=m_shader->idle_end-m_shader->idle_begin;
+                        m_shader->idle_flag=0;
+                    }
                     if ( !m_scoreboard->checkCollision(warp_id, pI) ) { 
                         SCHED_DPRINTF( "Warp (warp_id %u, dynamic_warp_id %u) passes scoreboard\n",
                                        (*iter)->get_warp_id(), (*iter)->get_dynamic_warp_id() );
                         ready_inst = true;
+                        if(m_shader->mem_flag==1){
+                            m_shader->mem_end=gpu_sim_cycle + gpu_tot_sim_cycle;
+                            m_stats->mem[m_shader->m_sid]+=m_shader->mem_end-m_shader->mem_begin;
+                            m_shader->mem_flag=0;
+                         }
                         const active_mask_t &active_mask = m_simt_stack[warp_id]->get_active_mask();
                         assert( warp(warp_id).inst_in_pipeline() );
                         if ( (pI->op == LOAD_OP) || (pI->op == STORE_OP) || (pI->op == MEMORY_BARRIER_OP) ) {
+                        
                             if( m_mem_out->has_free()) {
                                 m_shader->issue_warp(*m_mem_out,pI,active_mask,warp_id);
                                 issued++;
                                 issued_inst=true;
                                 warp_inst_issued = true;
+                                if(m_shader->pipeline_flag==1){
+                                    m_shader->pipeline_end=gpu_sim_cycle + gpu_tot_sim_cycle;
+                                    m_stats->pipeline[m_shader->m_sid]+=m_shader->pipeline_end-m_shader->pipeline_begin;
+                                    m_shader->pipeline_flag=0;
+                                }
                             }
                         } else {
                             bool sp_pipe_avail = m_sp_out->has_free();
                             bool sfu_pipe_avail = m_sfu_out->has_free();
+                           
                             if( sp_pipe_avail && (pI->op != SFU_OP) ) {
                                 // always prefer SP pipe for operations that can use both SP and SFU pipelines
                                 m_shader->issue_warp(*m_sp_out,pI,active_mask,warp_id);
                                 issued++;
                                 issued_inst=true;
                                 warp_inst_issued = true;
+                                 if(m_shader->pipeline_flag==1){
+                                    m_shader->pipeline_end=gpu_sim_cycle + gpu_tot_sim_cycle;
+                                    m_stats->pipeline[m_shader->m_sid]+=m_shader->pipeline_end-m_shader->pipeline_begin;
+                                    m_shader->pipeline_flag=0;
+                                }
+                            
                             } else if ( (pI->op == SFU_OP) || (pI->op == ALU_SFU_OP) ) {
                                 if( sfu_pipe_avail ) {
                                     m_shader->issue_warp(*m_sfu_out,pI,active_mask,warp_id);
                                     issued++;
                                     issued_inst=true;
                                     warp_inst_issued = true;
+                                     if(m_shader->pipeline_flag==1){
+                                    m_shader->pipeline_end=gpu_sim_cycle + gpu_tot_sim_cycle;
+                                    m_stats->pipeline[m_shader->m_sid]+=m_shader->pipeline_end-m_shader->pipeline_begin;
+                                    m_shader->pipeline_flag=0;
+                                    }
                                 }
-                            }                         }
+                            }                         
+                        }
                     } else {
                         SCHED_DPRINTF( "Warp (warp_id %u, dynamic_warp_id %u) fails scoreboard\n",
                                        (*iter)->get_warp_id(), (*iter)->get_dynamic_warp_id() );
@@ -982,8 +998,6 @@ void scheduler_unit::cycle()
                                (*iter)->get_dynamic_warp_id(),
                                issued );
                 do_on_warp_issued( warp_id, issued, iter );
-                // printf("%d,",m_shader->get_sid());
-                // std::cout<< m_shader.<<std::endl;
             }
             checked++;
         }
@@ -1005,12 +1019,29 @@ void scheduler_unit::cycle()
     }
 
     // issue stall statistics:
-    if( !valid_inst ) 
-        m_stats->shader_cycle_distro[0]++; // idle or control hazard
-    else if( !ready_inst ) 
+    if( !valid_inst ) {
+        if(m_shader->idle_flag==0){
+            m_shader->idle_begin=gpu_sim_cycle + gpu_tot_sim_cycle;
+            m_shader->idle_flag=1;  
+        }
+        m_stats->shader_cycle_distro[0]++; // idle or control hazard 
+    }   
+    else if( !ready_inst ) {
+        if(m_shader->mem_flag==0){
+            m_shader->mem_begin=gpu_sim_cycle + gpu_tot_sim_cycle;
+            m_shader->mem_flag=1;  
+        }
         m_stats->shader_cycle_distro[1]++; // waiting for RAW hazards (possibly due to memory) 
-    else if( !issued_inst ) 
+    }  
+    else if( !issued_inst ){
+        if(m_shader->pipeline_flag==0){
+            m_shader->pipeline_begin=gpu_sim_cycle + gpu_tot_sim_cycle;
+            m_shader->pipeline_flag=1;  
+        }
         m_stats->shader_cycle_distro[2]++; // pipeline stalled
+    } 
+        
+   
 }
 
 void scheduler_unit::do_on_warp_issued( unsigned warp_id,
@@ -1286,14 +1317,15 @@ void ldst_unit::get_cache_stats(cache_stats &cs) {
         cs += m_L1T->get_stats();
 
 }
-int L1_req_div[35]={0}; //bosheng:0324  create a array to store the total number of L1D diverse hit  
+
 void ldst_unit::get_L1D_sub_stats(struct cache_sub_stats &css) const{
     if(m_L1D)
         m_L1D->get_sub_stats(css);
-    
     for(int i=1;i<33;i++){//bosheng:0324 sum each SM L1D cache diverse(1~32) hit 
-        L1_req_div[i]+=*(m_L1D->L1_request_div_hit+i);
+        m_stats->div[i]+=*(m_L1D->L1_request_div_hit+i);
     }
+    m_stats->div1_stats[0]+=*(m_L1D->div_long_count);
+    m_stats->div1_stats[1]+=*(m_L1D->div1_count);
 }
 void ldst_unit::get_L1C_sub_stats(struct cache_sub_stats &css) const{
     if(m_L1C)
@@ -2150,14 +2182,25 @@ void gpgpu_sim::shader_print_cache_stats( FILE *fout ) const{
         total_css.clear();
         css.clear();
         fprintf(fout, "L1D_cache:\n");
+        float idle_mean=0;
+        float mem_mean=0;
+        float pipeline_mean=0;
         for (unsigned i=0;i<m_shader_config->n_simt_clusters;i++){
             m_cluster[i]->get_L1D_sub_stats(css);
 
             fprintf( stdout, "\tL1D_cache_core[%d]: Access = %d, Miss = %d, Miss_rate = %.3lf, Pending_hits = %u, Reservation_fails = %u\n",
                      i, css.accesses, css.misses, (double)css.misses / (double)css.accesses, css.pending_hits, css.res_fails);
-             fprintf( stdout,"\tCan_issue_percent[%d]:%d%%\n",i,m_shader_stats->issue_percent[i]);
+            fprintf( stdout,"\tidle_percent[%d]:%.0f%%,",i,m_shader_stats->idle[i]/(float)(gpu_sim_cycle+gpu_tot_sim_cycle)*100);
+            fprintf( stdout,"\tmem_percent[%d]:%.0f%%,",i,m_shader_stats->mem[i]/(float)(gpu_sim_cycle+gpu_tot_sim_cycle)*100);
+            fprintf( stdout,"\tpipeline_percent[%d]:%.0f%%\n",i,m_shader_stats->pipeline[i]/(float)(gpu_sim_cycle+gpu_tot_sim_cycle)*100);
+            idle_mean+=m_shader_stats->idle[i]/(float)(gpu_sim_cycle+gpu_tot_sim_cycle)*100;
+            mem_mean+=m_shader_stats->mem[i]/(float)(gpu_sim_cycle+gpu_tot_sim_cycle)*100;
+            pipeline_mean+=m_shader_stats->pipeline[i]/(float)(gpu_sim_cycle+gpu_tot_sim_cycle)*100;
             total_css += css;
         }
+        fprintf(fout, "\ttotal_idle_mean = %.2f%%\n", (float)idle_mean/15.0);
+        fprintf(fout, "\ttotal_mem_mean = %.2f%%\n", (float)mem_mean/15.0);
+        fprintf(fout, "\ttotal_pipeline_mean = %.2f%%\n", (float)pipeline_mean/15.0);
         fprintf(fout, "\tL1D_total_cache_accesses = %u\n", total_css.accesses);
         fprintf(fout, "\tL1D_total_cache_misses = %u\n", total_css.misses);
         if(total_css.accesses > 0){
@@ -2168,10 +2211,12 @@ void gpgpu_sim::shader_print_cache_stats( FILE *fout ) const{
         fprintf(fout, "\tL1D_total_cache_reservation_fails = %u\n", total_css.res_fails);
         total_css.print_port_stats(fout, "\tL1D_cache"); 
         for(int i=1;i<33;i++){
-            printf("%d. %d ",i,L1_req_div[i]);// bosheng:0324
+            printf("%d. %d ",i,m_shader_stats->div[i]);// bosheng:0324
         }
         printf("\n");
-        memset(L1_req_div,0, sizeof(L1_req_div));
+        printf("DIV1 Long:%d ,Total:%d ,percent:%.2f%%\n",m_shader_stats->div1_stats[0],m_shader_stats->div1_stats[1],
+        ((float)m_shader_stats->div1_stats[0] / (float)m_shader_stats->div1_stats[1])*100);
+        m_shader_stats->reset_div();
         
     }
 

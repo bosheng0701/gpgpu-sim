@@ -1042,6 +1042,15 @@ data_cache::process_tag_probe( bool wr,
         if(probe_status == HIT){
             //if(mf->get_pc()!=-1)
             //fprintf(F_latency,"%d,%d,%d,%d,%d\n",mf->cache_num,mf->get_pc(),(time),mf->get_timestamp(),time-mf->get_timestamp());//bosheng:0831 record L1 and L2 data cache time from generation to Hit 
+            if (mf->cache_num==1&&mf->get_pc()!=-1){ //bosheng:1002 long div1 count 
+                int cost=time-mf->get_m_begin_time();
+                *div1_count+=1;
+                printf("%d---1004\n",cost);
+                if(cost>10) 
+                {
+                    *div_long_count+=1;
+                }
+            }
             access_status = (this->*m_wr_hit)( addr,
                                       cache_index,
                                       mf, time, events, probe_status );
@@ -1054,8 +1063,14 @@ data_cache::process_tag_probe( bool wr,
         if(probe_status == HIT){
             //if(mf->get_pc()!=-1)
             //fprintf(F_latency,"%d,%d,%d,%d,%d\n",mf->cache_num,mf->get_pc(),(time),mf->get_timestamp(),time-mf->get_timestamp());
-            if (mf->cache_num==1&&mf->get_pc()!=-1){
-                printf("%d\n",time-mf->get_m_begin_time());
+            if (mf->cache_num==1&&mf->get_pc()!=-1){ //bosheng:1002 long div1 count 
+                int cost=time-mf->get_m_begin_time();
+                *div1_count+=1;
+                if(cost>10) 
+                {
+                    *div_long_count+=1;
+                }
+
             }
             access_status = (this->*m_rd_hit)( addr,
                                       cache_index,
@@ -1094,8 +1109,7 @@ data_cache::access( new_addr_type addr,
     enum cache_request_status access_status
         = process_tag_probe( wr, probe_status, addr, cache_index, mf, time, events );
     if(cache_flag == 0 && access_status == 0 && (mf->mf_div < 33 && mf->mf_div > 0 )){ //可能prob時候HIT  access的時候write會出現reserve faile bosheng:0319 change
-        *(L1_request_div_hit+mf->mf_div)+=1;//bosheng:0324
-        
+        *(L1_request_div_hit+mf->mf_div)+=1;//bosheng:0324   
     }    
     m_stats.inc_stats(mf->get_access_type(),
         m_stats.select_stats_status(probe_status, access_status));

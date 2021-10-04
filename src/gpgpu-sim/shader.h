@@ -1407,7 +1407,11 @@ struct shader_core_stats_pod {
     long *n_mem_to_simt;
 
     //bosheng:1001 issue stats
-    int issue_percent[16]={0}; 
+    float idle[16]={0};
+    float mem[16]={0};
+    float pipeline[16]={0};
+    int div[33]={0};
+    int div1_stats[2];
 };
 
 class shader_core_stats : public shader_core_stats_pod {
@@ -1487,7 +1491,7 @@ public:
     void event_warp_issued( unsigned s_id, unsigned warp_id, unsigned num_issued, unsigned dynamic_warp_id );
 
     void visualizer_print( gzFile visualizer_file );
-
+    
     void print( FILE *fout ) const;
 
     const std::vector< std::vector<unsigned> >& get_dynamic_warp_issue() const
@@ -1500,6 +1504,7 @@ public:
         return m_shader_warp_slot_issue_distro;
     }
 
+    void reset_div(){memset(div,0,sizeof(div));memset(div1_stats,0,sizeof(div1_stats));}
 private:
     const shader_core_config *m_config;
 
@@ -1796,10 +1801,15 @@ public:
     long total_lsu_time=0;
     long total_alu_time=0;
     // can not issue warp 
-    int issue_flag=0;
-    int issue_begin=0;
-    int issue_end=0;
-    long can_not_issue=0;
+    bool pipeline_flag=0;
+    float pipeline_begin=0;
+    float pipeline_end=0;
+    bool idle_flag=0;
+    float idle_begin=0;
+    float idle_end=0;
+    bool mem_flag=0;
+    float mem_begin=0;
+    float mem_end=0;
     // CTA retire check
     int cta_count=0;
     unsigned cta_flag[16]={0};

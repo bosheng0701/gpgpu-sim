@@ -895,7 +895,6 @@ void gpgpu_sim::gpu_print_stat()
    printf("gpu_tot_issued_cta = %lld\n", gpu_tot_issued_cta);
 
 
-
    // performance counter for stalls due to congestion.
    printf("gpu_stall_dramfull = %d\n", gpu_stall_dramfull);
    printf("gpu_stall_icnt2sh    = %d\n", gpu_stall_icnt2sh );

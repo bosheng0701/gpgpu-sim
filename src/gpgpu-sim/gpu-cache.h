@@ -541,6 +541,9 @@ public:
     virtual bool data_port_free() const = 0; 
     virtual bool fill_port_free() const = 0;
     int *L1_request_div_hit=(int*)malloc( sizeof(int) * 35 ); //bosheng:0324
+    int *div1_count=(int*)malloc( sizeof(int));//bosheng:1002 div count 
+    int *div_long_count=(int*)malloc( sizeof(int) );//bosheng:1002 count long div1
+    
     
 };
 
