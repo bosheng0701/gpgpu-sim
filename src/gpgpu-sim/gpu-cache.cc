@@ -1045,7 +1045,7 @@ data_cache::process_tag_probe( bool wr,
             if (mf->cache_num==1&&mf->get_pc()!=-1){ //bosheng:1002 long div1 count 
                 int cost=time-mf->get_m_begin_time();
                 *div1_count+=1;
-                printf("%d---1004\n",cost);
+                //printf("%d---1004\n",cost);
                 if(cost>10) 
                 {
                     *div_long_count+=1;
@@ -1082,7 +1082,8 @@ data_cache::process_tag_probe( bool wr,
         }
     }
     //fclose(F_latency);
-    m_bandwidth_management.use_data_port(mf, access_status, events); 
+    m_bandwidth_management.use_data_port(mf, access_status, events);  
+    
     return access_status;
 }
 
