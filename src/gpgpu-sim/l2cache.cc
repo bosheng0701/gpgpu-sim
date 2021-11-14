@@ -558,9 +558,11 @@ void memory_sub_partition::push( mem_fetch* req, unsigned long long cycle )
         m_stats->memlatstat_icnt2mem_pop(req);
         if( req->istexture() ) {
             m_icnt_L2_queue->push(req);
+            set_all_num(0,1);//bosheng:211013 set_rop_rate
             //printf("req_addr %p \n",req->get_addr());//bosheng:0702 catch l2 mf
             req->set_status(IN_PARTITION_ICNT_TO_L2_QUEUE,gpu_sim_cycle+gpu_tot_sim_cycle);
         } else {
+            set_all_num(1,1);//bosheng:211013 set_rop_rate
             rop_delay_t r;
             r.req = req;
             r.ready_cycle = cycle + m_config->rop_latency;
@@ -568,6 +570,7 @@ void memory_sub_partition::push( mem_fetch* req, unsigned long long cycle )
             req->set_status(IN_PARTITION_ROP_DELAY,gpu_sim_cycle+gpu_tot_sim_cycle);
         }
     }
+    // printf("%d,%d\n",get_rop_rate(),get_all_rate());
 }
 
 mem_fetch* memory_sub_partition::pop() 

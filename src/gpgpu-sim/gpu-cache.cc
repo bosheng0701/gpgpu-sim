@@ -29,7 +29,7 @@
 #include "stat-tool.h"
 #include <assert.h>
 #include<iostream>
-
+using namespace std;
 #define MAX_DEFAULT_CACHE_SIZE_MULTIBLIER 4
 // used to allocate memory that is large enough to adapt the changes in cache size across kernels
 
@@ -164,7 +164,7 @@ enum cache_request_status tag_array::probe( new_addr_type addr, unsigned &idx ) 
     unsigned invalid_line = (unsigned)-1;
     unsigned valid_line = (unsigned)-1;
     unsigned valid_timestamp = (unsigned)-1;
-
+    
     bool all_reserved = true;
 
     // check for hit or pending hit
@@ -1104,13 +1104,13 @@ data_cache::access( new_addr_type addr,
     assert( mf->get_data_size() <= m_config.get_line_sz());
     bool wr = mf->get_is_write();
     new_addr_type block_addr = m_config.block_addr(addr);
-    unsigned cache_index = (unsigned)-1;   
+    unsigned cache_index = (unsigned)-1;  
     enum cache_request_status probe_status
-        = m_tag_array->probe( block_addr, cache_index );
+        = m_tag_array->probe( block_addr, cache_index ); 
     enum cache_request_status access_status
         = process_tag_probe( wr, probe_status, addr, cache_index, mf, time, events );
     if(cache_flag == 0 && access_status == 0 && (mf->mf_div < 33 && mf->mf_div > 0 )){ //可能prob時候HIT  access的時候write會出現reserve faile bosheng:0319 change
-        *(L1_request_div_hit+mf->mf_div)+=1;//bosheng:0324   
+        *(L1_request_div_hit+mf->mf_div)+=1;//bosheng:0324 
     }    
     m_stats.inc_stats(mf->get_access_type(),
         m_stats.select_stats_status(probe_status, access_status));

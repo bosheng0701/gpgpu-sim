@@ -177,6 +177,9 @@ public:
    void accumulate_L2cache_stats(class cache_stats &l2_stats) const;
    void get_L2cache_sub_stats(struct cache_sub_stats &css) const;
 
+   void set_all_num(unsigned int num,unsigned int all){rop_num+=num;all_num+=all;}//bosheng:211013 set_rop_rate
+   int get_rop_rate(){return rop_num;}   //bosheng:211013 set_rop_rate
+   int get_all_rate(){return all_num;}   //bosheng:211013 set_rop_rate
 private:
 // data
    unsigned m_id;  //< the global sub partition ID
@@ -184,6 +187,8 @@ private:
    class l2_cache *m_L2cache;
    class L2interface *m_L2interface;
    partition_mf_allocator *m_mf_allocator;
+   unsigned int rop_num=0;//bosheng:1013 rop_rate collect
+   unsigned int all_num=0;
 
    // model delay of ROP units with a fixed latency
    struct rop_delay_t
