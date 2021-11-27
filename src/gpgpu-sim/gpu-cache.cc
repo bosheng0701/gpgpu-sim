@@ -242,7 +242,7 @@ enum cache_request_status tag_array::probeL1( new_addr_type addr, unsigned &idx 
                 return HIT_RESERVED;
             } else if ( line->m_status == VALID ) {
                 idx = index;
-                printf("%d,%d\n",mf->mf_div,line->block_div);
+                
             //chao:寫檔mf_div命中在block_div
                 if(mf->mf_div == 1){
                     div1_hit_div[line->block_div]+=1;
