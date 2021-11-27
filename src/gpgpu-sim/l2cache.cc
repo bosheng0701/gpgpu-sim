@@ -334,6 +334,13 @@ memory_sub_partition::~memory_sub_partition()
 
 void memory_sub_partition::cache_cycle( unsigned cycle )
 {
+    
+    if (m_L2_icnt_queue->full()) L2_to_icnt++;
+    if (m_L2_dram_queue->full()) L2_to_Dram++;
+    if (m_icnt_L2_queue->full()) icnt_to_L2++;
+    if (m_dram_L2_queue->full()) Dram_to_L2++;
+    if (!m_L2cache->data_port_free()) data_port_full++;
+    
     // L2 fill responses
     if( !m_config->m_L2_config.disabled()) {
        if ( m_L2cache->access_ready() && !m_L2_icnt_queue->full() ) {
@@ -416,6 +423,7 @@ void memory_sub_partition::cache_cycle( unsigned cycle )
                 } else {
                     assert(!write_sent);
                     assert(!read_sent);
+                    mshr_full++;
                     // L2 cache lock-up: will try again next cycle
                 }
             }
@@ -426,6 +434,7 @@ void memory_sub_partition::cache_cycle( unsigned cycle )
             m_icnt_L2_queue->pop();
         }
     }
+
 
     // ROP delay queue
     if( !m_rop.empty() && (cycle >= m_rop.front().ready_cycle) && !m_icnt_L2_queue->full() ) {
@@ -558,11 +567,11 @@ void memory_sub_partition::push( mem_fetch* req, unsigned long long cycle )
         m_stats->memlatstat_icnt2mem_pop(req);
         if( req->istexture() ) {
             m_icnt_L2_queue->push(req);
-            set_all_num(0,1);//bosheng:211013 set_rop_rate
+            // set_all_num(0,1);//bosheng:211013 set_rop_rate
             //printf("req_addr %p \n",req->get_addr());//bosheng:0702 catch l2 mf
             req->set_status(IN_PARTITION_ICNT_TO_L2_QUEUE,gpu_sim_cycle+gpu_tot_sim_cycle);
         } else {
-            set_all_num(1,1);//bosheng:211013 set_rop_rate
+            // set_all_num(1,1);//bosheng:211013 set_rop_rate
             rop_delay_t r;
             r.req = req;
             r.ready_cycle = cycle + m_config->rop_latency;

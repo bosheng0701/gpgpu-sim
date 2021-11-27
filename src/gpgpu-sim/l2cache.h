@@ -180,6 +180,13 @@ public:
    void set_all_num(unsigned int num,unsigned int all){rop_num+=num;all_num+=all;}//bosheng:211013 set_rop_rate
    int get_rop_rate(){return rop_num;}   //bosheng:211013 set_rop_rate
    int get_all_rate(){return all_num;}   //bosheng:211013 set_rop_rate
+
+   unsigned icnt_to_L2;     //bosheng:211126 L2 stall reason
+   unsigned L2_to_Dram;
+   unsigned Dram_to_L2;
+   unsigned L2_to_icnt;
+   unsigned data_port_full;
+   unsigned mshr_full;
 private:
 // data
    unsigned m_id;  //< the global sub partition ID

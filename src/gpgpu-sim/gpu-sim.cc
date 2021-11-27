@@ -961,7 +961,27 @@ void gpgpu_sim::gpu_print_stat()
           total_l2_css.print_port_stats(stdout, "L2_cache");
        }
    }
-
+   //------------------------------------------------------------------------------------------------------------------
+   
+   unsigned Total_L2toDRAM_stall=0;
+   unsigned Total_L2toICNT_stall=0;
+   unsigned Total_Dram_to_L2=0;
+   unsigned Total_icnt_to_L2=0;
+   unsigned Total_dataport_stall=0;
+   unsigned Total_MSHR_stall=0;
+printf("\n=========================  L2_queue_stall  ===================================\n");
+   for (unsigned i = 0; i < m_memory_config->m_n_mem_sub_partition; i++)
+   {
+      //fprintf(stdout,"bank[%d]: L2toDRAM_stall:%u L2toICNT_stall:%u dataport_stall:%u mshr_stall:%u\n",i,m_memory_sub_partition[i]->L2toDram_Queue_stall,m_memory_sub_partition[i]->L2toICNT_Queue_stall,m_memory_sub_partition[i]->L2_dataprot_stall,m_memory_sub_partition[i]->mshr_stall);
+      Total_L2toDRAM_stall +=m_memory_sub_partition[i]->L2_to_Dram;
+      Total_L2toICNT_stall +=m_memory_sub_partition[i]->L2_to_icnt;
+      Total_dataport_stall +=m_memory_sub_partition[i]->data_port_full;
+      Total_MSHR_stall +=m_memory_sub_partition[i]->mshr_full;
+      Total_Dram_to_L2 +=m_memory_sub_partition[i]->Dram_to_L2;
+      Total_icnt_to_L2 +=m_memory_sub_partition[i]->icnt_to_L2;
+   }
+   fprintf(stdout,"Total_L2toDRAM_stall: %u\nTotal_L2toICNT_stall: %u\nTotal_dataport_stall: %u\nTotal_MSHR_stall: %u\nTotal_Dram_to_L2: %u\nTotal_icnt_to_L2: %u \n", Total_L2toDRAM_stall ,Total_L2toICNT_stall,Total_dataport_stall,Total_MSHR_stall,Total_Dram_to_L2,Total_icnt_to_L2);
+   //------------------------------------------------------------------------------------------------------------------
    if (m_config.gpgpu_cflog_interval != 0) {
       spill_log_to_file (stdout, 1, gpu_sim_cycle);
       insn_warp_occ_print(stdout);

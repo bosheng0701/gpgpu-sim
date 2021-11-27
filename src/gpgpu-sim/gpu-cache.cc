@@ -218,17 +218,154 @@ enum cache_request_status tag_array::probe( new_addr_type addr, unsigned &idx ) 
 
     return MISS;
 }
+int div1_hit_div[32]={0};
+int div2_hit_div[32]={0};
+int div3_hit_div[32]={0};
+enum cache_request_status tag_array::probeL1( new_addr_type addr, unsigned &idx ,mem_fetch *mf) const {
+    //assert( m_config.m_write_policy == READ_ONLY );
+    unsigned set_index = m_config.set_index(addr);
+    new_addr_type tag = m_config.tag(addr);
 
-enum cache_request_status tag_array::access( new_addr_type addr, unsigned time, unsigned &idx )
+    unsigned invalid_line = (unsigned)-1;
+    unsigned valid_line = (unsigned)-1;
+    unsigned valid_timestamp = (unsigned)-1;
+    
+    bool all_reserved = true;
+
+    // check for hit or pending hit
+    for (unsigned way=0; way<m_config.m_assoc; way++) {
+        unsigned index = set_index*m_config.m_assoc+way;
+        cache_block_t *line = &m_lines[index];
+        if (line->m_tag == tag) {
+            if ( line->m_status == RESERVED ) {
+                idx = index;
+                return HIT_RESERVED;
+            } else if ( line->m_status == VALID ) {
+                idx = index;
+                printf("%d,%d\n",mf->mf_div,line->block_div);
+            //chao:寫檔mf_div命中在block_div
+                if(mf->mf_div == 1){
+                    div1_hit_div[line->block_div]+=1;
+                    FILE *pFile1;
+                    pFile1 = fopen("./div1_hit_div.csv","w");
+                    for(int i=1;i<33;i++){
+                        fprintf(pFile1,"%i.%d, ",i,div1_hit_div[i]);
+                    }
+                    fclose(pFile1);
+                }
+                if(mf->mf_div == 2){
+                    div2_hit_div[line->block_div]++;
+                    FILE *pFile2;
+                    pFile2 = fopen("./div2_hit_div.csv","w");
+                    for(int i=1;i<33;i++){
+                        fprintf(pFile2,"%i.%d, ",i,div2_hit_div[i]);
+                    }
+                    fclose(pFile2);
+                }
+                if(mf->mf_div == 3){
+                    div3_hit_div[line->block_div]++;
+                    FILE *pFile4;
+                    pFile4 = fopen("./div3_hit_div.csv","w");
+                    for(int i=1;i<33;i++){
+                        fprintf(pFile4,"%i.%d, ",i,div3_hit_div[i]);
+                    }
+                    fclose(pFile4);
+                }
+            //chao:寫檔，看命中在哪個PC上
+                if(mf->mf_div==1){
+                    FILE *pFile5;
+                    pFile5 = fopen("./pc_hit_pc.csv","a");
+                    fprintf(pFile5,"%x,%x\n",mf->get_pc(),line->block_pc);
+                    fclose(pFile5);
+                }
+
+                return HIT;
+            } else if ( line->m_status == MODIFIED ) {
+                idx = index;
+                printf("%d,%d\n",mf->mf_div,line->block_div);
+                 //chao:寫檔mf_div命中在block_div
+                if(mf->mf_div == 1){
+                    div1_hit_div[line->block_div]++;
+                    FILE *pFile1;
+                    pFile1 = fopen("./div1_hit_div.csv","w");
+                    for(int i=1;i<33;i++){
+                        fprintf(pFile1,"%i.%d, ",i,div2_hit_div[i]);
+                    }
+                    fclose(pFile1);
+                }
+                if(mf->mf_div == 2){
+                    div2_hit_div[line->block_div]++;
+                    FILE *pFile2;
+                    pFile2 = fopen("./div2_hit_div.csv","w");
+                    for(int i=1;i<33;i++){
+                        fprintf(pFile2,"%i.%d, ",i,div2_hit_div[i]);
+                    }
+                    fclose(pFile2);
+                }
+                if(mf->mf_div == 3){
+                    div3_hit_div[line->block_div]++;
+                    FILE *pFile4;
+                    pFile4 = fopen("./div3_hit_div.csv","w");
+                    for(int i=1;i<33;i++){
+                        fprintf(pFile4,"%i.%d, ",i,div3_hit_div[i]);
+                    }
+                    fclose(pFile4);
+                }
+                //chao:寫檔，看命中在哪個PC上
+                if(mf->mf_div ==1 ){
+                    FILE *pFile5;
+                    pFile5 = fopen("./pc_hit_pc.csv","a");
+                    fprintf(pFile5,"%x,%x\n",mf->get_pc(),line->block_pc);
+                    fclose(pFile5);
+                }
+                return HIT;
+            } else {
+                assert( line->m_status == INVALID );
+            }
+        }
+        if (line->m_status != RESERVED) {
+            all_reserved = false;
+            if (line->m_status == INVALID) {
+                invalid_line = index;
+            } else {
+                // valid line : keep track of most appropriate replacement candidate
+                if ( m_config.m_replacement_policy == LRU ) {
+                    if ( line->m_last_access_time < valid_timestamp ) {
+                        valid_timestamp = line->m_last_access_time;
+                        valid_line = index;
+                    }
+                } else if ( m_config.m_replacement_policy == FIFO ) {
+                    if ( line->m_alloc_time < valid_timestamp ) {
+                        valid_timestamp = line->m_alloc_time;
+                        valid_line = index;
+                    }
+                }
+            }
+        }
+    }
+    if ( all_reserved ) {
+        assert( m_config.m_alloc_policy == ON_MISS ); 
+        return RESERVATION_FAIL; // miss and not enough space in cache to allocate on miss
+    }
+
+    if ( invalid_line != (unsigned)-1 ) {
+        idx = invalid_line;
+    } else if ( valid_line != (unsigned)-1) {
+        idx = valid_line;
+    } else abort(); // if an unreserved block exists, it is either invalid or replaceable 
+
+    return MISS;
+}
+enum cache_request_status tag_array::access( new_addr_type addr, unsigned time, unsigned &idx,mem_fetch *mf)
 {
     bool wb=false;
     cache_block_t evicted;
-    enum cache_request_status result = access(addr,time,idx,wb,evicted);
+    enum cache_request_status result = access(addr,time,idx,wb,evicted,mf);
     assert(!wb);
     return result;
 }
 
-enum cache_request_status tag_array::access( new_addr_type addr, unsigned time, unsigned &idx, bool &wb, cache_block_t &evicted ) 
+enum cache_request_status tag_array::access( new_addr_type addr, unsigned time, unsigned &idx, bool &wb, cache_block_t &evicted,mem_fetch *mf) 
 {
     m_access++;
     shader_cache_access_log(m_core_id, m_type_id, 0); // log accesses to cache
@@ -248,6 +385,9 @@ enum cache_request_status tag_array::access( new_addr_type addr, unsigned time, 
                 evicted = m_lines[idx];
             }
             m_lines[idx].allocate( m_config.tag(addr), m_config.block_addr(addr), time );
+            m_lines[idx].set_block_div(mf->mf_div);
+            m_lines[idx].set_block_pc(mf->get_pc());
+            
         }
         break;
     case RESERVATION_FAIL:
@@ -753,17 +893,17 @@ void baseline_cache::send_read_request(new_addr_type addr, new_addr_type block_a
     bool mshr_avail = !m_mshrs.full(block_addr);
     if ( mshr_hit && mshr_avail ) {
     	if(read_only)
-    		m_tag_array->access(block_addr,time,cache_index);
+    		m_tag_array->access(block_addr,time,cache_index,mf);
     	else
-    		m_tag_array->access(block_addr,time,cache_index,wb,evicted);
+    		m_tag_array->access(block_addr,time,cache_index,wb,evicted,mf);
 
         m_mshrs.add(block_addr,mf);
         do_miss = true;
     } else if ( !mshr_hit && mshr_avail && (m_miss_queue.size() < m_config.m_miss_queue_size) ) {
     	if(read_only)
-    		m_tag_array->access(block_addr,time,cache_index);
+    		m_tag_array->access(block_addr,time,cache_index,mf);
     	else
-    		m_tag_array->access(block_addr,time,cache_index,wb,evicted);
+    		m_tag_array->access(block_addr,time,cache_index,wb,evicted,mf);
 
         m_mshrs.add(block_addr,mf);
         m_extra_mf_fields[mf] = extra_mf_fields(block_addr,cache_index, mf->get_data_size());
@@ -790,7 +930,7 @@ void data_cache::send_write_request(mem_fetch *mf, cache_event request, unsigned
 /// Write-back hit: Mark block as modified
 cache_request_status data_cache::wr_hit_wb(new_addr_type addr, unsigned cache_index, mem_fetch *mf, unsigned time, std::list<cache_event> &events, enum cache_request_status status ){
 	new_addr_type block_addr = m_config.block_addr(addr);
-	m_tag_array->access(block_addr,time,cache_index); // update LRU state
+	m_tag_array->access(block_addr,time,cache_index,mf); // update LRU state
 	cache_block_t &block = m_tag_array->get_block(cache_index);
 	block.m_status = MODIFIED;
 
@@ -803,7 +943,7 @@ cache_request_status data_cache::wr_hit_wt(new_addr_type addr, unsigned cache_in
 		return RESERVATION_FAIL; // cannot handle request this cycle
 
 	new_addr_type block_addr = m_config.block_addr(addr);
-	m_tag_array->access(block_addr,time,cache_index); // update LRU state
+	m_tag_array->access(block_addr,time,cache_index,mf); // update LRU state
 	cache_block_t &block = m_tag_array->get_block(cache_index);
 	block.m_status = MODIFIED;
 
@@ -933,7 +1073,7 @@ data_cache::rd_hit_base( new_addr_type addr,
                          enum cache_request_status status )
 {
     new_addr_type block_addr = m_config.block_addr(addr);
-    m_tag_array->access(block_addr,time,cache_index);
+    m_tag_array->access(block_addr,time,cache_index,mf);
     // Atomics treated as global read/write requests - Perform read, mark line as
     // MODIFIED
     if(mf->isatomic()){ 
@@ -999,7 +1139,7 @@ read_only_cache::access( new_addr_type addr,
     enum cache_request_status cache_status = RESERVATION_FAIL;
     
     if ( status == HIT ) {
-        cache_status = m_tag_array->access(block_addr,time,cache_index); // update LRU state
+        cache_status = m_tag_array->access(block_addr,time,cache_index,mf); // update LRU state
     }else if ( status != RESERVATION_FAIL ) {
         if(!miss_queue_full(0)){
             bool do_miss=false;
@@ -1040,6 +1180,7 @@ data_cache::process_tag_probe( bool wr,
     cache_request_status access_status = probe_status;
     if(wr){ // Write
         if(probe_status == HIT){
+            //-----------------------------------------------------------------------------------------------------------------------------
             //if(mf->get_pc()!=-1)
             //fprintf(F_latency,"%d,%d,%d,%d,%d\n",mf->cache_num,mf->get_pc(),(time),mf->get_timestamp(),time-mf->get_timestamp());//bosheng:0831 record L1 and L2 data cache time from generation to Hit 
             if (mf->cache_num==1&&mf->get_pc()!=-1){ //bosheng:1002 long div1 count 
@@ -1051,6 +1192,7 @@ data_cache::process_tag_probe( bool wr,
                     *div_long_count+=1;
                 }
             }
+            //-----------------------------------------------------------------------------------------------------------------------------
             access_status = (this->*m_wr_hit)( addr,
                                       cache_index,
                                       mf, time, events, probe_status );
@@ -1083,7 +1225,7 @@ data_cache::process_tag_probe( bool wr,
     }
     //fclose(F_latency);
     m_bandwidth_management.use_data_port(mf, access_status, events);  
-    
+
     return access_status;
 }
 
@@ -1093,7 +1235,7 @@ data_cache::process_tag_probe( bool wr,
 // Both the L1 and L2 override this function to provide a means of
 // performing actions specific to each cache when such actions are implemnted.
 
-int cache_flag=0 ;// bosheng:0324 0 -> l1cache_access  1 -> l2cache_access (to know which cache access)
+int cache_flag=0;// bosheng:0324 1 -> l1cache_access  2 -> l2cache_access (to know which cache access)
 
 enum cache_request_status
 data_cache::access( new_addr_type addr,
@@ -1104,14 +1246,15 @@ data_cache::access( new_addr_type addr,
     assert( mf->get_data_size() <= m_config.get_line_sz());
     bool wr = mf->get_is_write();
     new_addr_type block_addr = m_config.block_addr(addr);
-    unsigned cache_index = (unsigned)-1;  
+    unsigned cache_index = (unsigned)-1;
     enum cache_request_status probe_status
-        = m_tag_array->probe( block_addr, cache_index ); 
+        = m_tag_array->probe( block_addr, cache_index );  
     enum cache_request_status access_status
         = process_tag_probe( wr, probe_status, addr, cache_index, mf, time, events );
-    if(cache_flag == 0 && access_status == 0 && (mf->mf_div < 33 && mf->mf_div > 0 )){ //可能prob時候HIT  access的時候write會出現reserve faile bosheng:0319 change
-        *(L1_request_div_hit+mf->mf_div)+=1;//bosheng:0324 
-    }    
+    if(cache_flag == 1 && access_status == 0 && (mf->mf_div < 33 && mf->mf_div > 0 )){ //可能prob時候HIT  access的時候write會出現reserve faile bosheng:0319 change
+        *(L1_request_div_hit+mf->mf_div)+=1;//bosheng:0324  
+        m_tag_array->probeL1(block_addr, cache_index,mf);  
+    }
     m_stats.inc_stats(mf->get_access_type(),
         m_stats.select_stats_status(probe_status, access_status));
     return access_status;
@@ -1127,7 +1270,7 @@ l1_cache::access( new_addr_type addr,
                   unsigned time,
                   std::list<cache_event> &events )
 {
-    cache_flag=0;//bosheng:0324
+    cache_flag=1;//bosheng:0324
     mf->cache_num=1;
     return data_cache::access( addr, mf, time, events );
 }
@@ -1141,7 +1284,7 @@ l2_cache::access( new_addr_type addr,
                   unsigned time,
                   std::list<cache_event> &events )
 {
-    cache_flag=1;//bosheng:0324
+    cache_flag=2;//bosheng:0324
     mf->cache_num=2;
     return data_cache::access( addr, mf, time, events );
 }
@@ -1162,7 +1305,7 @@ enum cache_request_status tex_cache::access( new_addr_type addr, mem_fetch *mf,
     // at this point, we will accept the request : access tags and immediately allocate line
     new_addr_type block_addr = m_config.block_addr(addr);
     unsigned cache_index = (unsigned)-1;
-    enum cache_request_status status = m_tags.access(block_addr,time,cache_index);
+    enum cache_request_status status = m_tags.access(block_addr,time,cache_index,mf);
     enum cache_request_status cache_status = RESERVATION_FAIL;
     assert( status != RESERVATION_FAIL );
     assert( status != HIT_RESERVED ); // as far as tags are concerned: HIT or MISS

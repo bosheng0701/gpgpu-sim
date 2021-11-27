@@ -70,6 +70,8 @@ struct cache_block_t {
         m_fill_time=0;
         m_last_access_time=0;
         m_status=INVALID;
+        block_div=-1;
+        block_pc=0;
     }
     void allocate( new_addr_type tag, new_addr_type block_addr, unsigned time )
     {
@@ -79,6 +81,7 @@ struct cache_block_t {
         m_last_access_time=time;
         m_fill_time=0;
         m_status=RESERVED;
+        block_pc=0;
     }
     void fill( unsigned time )
     {
@@ -86,13 +89,21 @@ struct cache_block_t {
         m_status=VALID;
         m_fill_time=time;
     }
-
+    void set_block_div(unsigned div)
+    {
+        block_div=div;
+    }
+    void set_block_pc(int pc){
+        block_pc=pc;
+    }
     new_addr_type    m_tag;
     new_addr_type    m_block_addr;
     unsigned         m_alloc_time;
     unsigned         m_last_access_time;
     unsigned         m_fill_time;
     cache_block_state    m_status;
+    int block_div;
+    int block_pc;
 };
 
 enum replacement_policy_t {
@@ -340,10 +351,11 @@ public:
     // Use this constructor
     tag_array(cache_config &config, int core_id, int type_id );
     ~tag_array();
-
+    
     enum cache_request_status probe( new_addr_type addr, unsigned &idx ) const;
-    enum cache_request_status access( new_addr_type addr, unsigned time, unsigned &idx );
-    enum cache_request_status access( new_addr_type addr, unsigned time, unsigned &idx, bool &wb, cache_block_t &evicted );
+    enum cache_request_status probeL1( new_addr_type addr, unsigned &idx, mem_fetch *mf ) const;
+    enum cache_request_status access( new_addr_type addr, unsigned time, unsigned &idx, mem_fetch *mf);
+    enum cache_request_status access( new_addr_type addr, unsigned time, unsigned &idx, bool &wb, cache_block_t &evicted, mem_fetch *mf);
 
     void fill( new_addr_type addr, unsigned time );
     void fill( unsigned idx, unsigned time );
@@ -387,6 +399,7 @@ protected:
 
     int m_core_id; // which shader core is using this
     int m_type_id; // what kind of cache is this (normal, texture, constant)
+
 };
 
 class mshr_table {
