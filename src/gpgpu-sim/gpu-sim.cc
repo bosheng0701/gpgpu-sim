@@ -98,8 +98,6 @@ unsigned int gpu_stall_icnt2sh = 0;
 #define MEM_LATENCY_STAT_IMPL
 
 
-
-
 #include "mem_latency_stat.h"
 
 void power_config::reg_options(class OptionParser * opp)
