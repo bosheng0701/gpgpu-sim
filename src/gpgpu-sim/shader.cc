@@ -1520,18 +1520,21 @@ bool ldst_unit::memory_cycle( warp_inst_t &inst, mem_stage_stall_type &stall_rea
    assert( !inst.accessq_empty() );
    mem_stage_stall_type stall_cond = NO_RC_FAIL;
    const mem_access_t &access = inst.accessq_back();
-    //Method switch
-   char div_bypass[20];
+   
+    //bosheng:220109 Method switch
+   char method_name[20];
    int num_bypass;
    FILE *method=fopen("method.config","r");
-   fscanf(method,"%s %d %*s",div_bypass,&num_bypass);
-
+   while (strcmp(method_name,"bypass")!=0)
+        fscanf(method,"%s %d %*s",method_name,&num_bypass);
+   fclose(method);
+    
     if(num_bypass>0 && inst.warp_div>num_bypass) //bosheng:1126 bypass diverse N
     {
         inst.cache_op=CACHE_GLOBAL;
     }
-    fclose(method);
     
+
    bool bypassL1D = false; 
    if ( CACHE_GLOBAL == inst.cache_op || (m_L1D == NULL) ) {
        bypassL1D = true; 
