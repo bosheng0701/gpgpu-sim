@@ -709,11 +709,29 @@ void shader_core_ctx::issue_warp( register_set& pipe_reg_set, const warp_inst_t*
     m_scoreboard->reserveRegisters(*pipe_reg);
     m_warp[warp_id].set_next_pc(next_inst->pc + next_inst->isize);
 }
-
+bool atm_flag=false;
 void shader_core_ctx::issue(){
     //really is issue;
-    
+    if((gpu_sim_cycle+gpu_tot_sim_cycle)%1000==0){
+        FILE *ipc_temp=fopen("temp_ipc.txt","w");
+        atm_curr_inst=(get_gpu()->gpu_sim_insn+get_gpu()->gpu_tot_sim_insn-atm_prev_inst);
+        fprintf(ipc_temp, "%.2f", (float)(atm_curr_inst/1000.00));
+        fclose(ipc_temp);
+        atm_prev_inst=get_gpu()->gpu_sim_insn+get_gpu()->gpu_tot_sim_insn;
+        total_css.clear();
+        atm_flag=true;
+        m_cluster->get_L1D_sub_stats(total_css);
+        if(total_css.accesses!=0){
+            FILE *missrate_write=fopen("temp_missrate.txt","w");
+            fprintf(missrate_write, "%.4lf", (double)(total_css.misses) / (double)(total_css.accesses));
+            fclose(missrate_write);
+            // atm_prev_miss= (total_css.misses);
+            // atm_prev_access=(total_css.accesses);
+        } 
+    }
+        
     for (unsigned i = 0; i < schedulers.size(); i++) {
+        
         // if((gpu_sim_cycle+gpu_tot_sim_cycle)/100>0&&(gpu_sim_cycle+gpu_tot_sim_cycle)%100==0){ //bosheng:0917 ipc detect warp throttling
         //     aver_ipc[ipc_count]=(get_gpu()->gpu_sim_insn+get_gpu()->gpu_tot_sim_insn)/(gpu_sim_cycle+gpu_tot_sim_cycle);
         //     ipc_count+=1;
@@ -729,7 +747,7 @@ void shader_core_ctx::issue(){
         // if((gpu_sim_cycle+gpu_tot_sim_cycle)/1000>0&&(gpu_sim_cycle+gpu_tot_sim_cycle)%1000==0){// bosheng:0917 miss_rate detect
         //     float miss_rate;
         //     total_css.clear();
-        //     m_cluster->get_L1D_sub_stats(total_css);
+            // m_cluster->get_L1D_sub_stats(total_css);
         //     if(total_css.accesses!=0)
         //         miss_rate=(double)total_css.misses / (double)total_css.accesses;
         //     if(miss_rate<1&& miss_rate>last_miss*1.2)stall_flag=16;
@@ -1320,13 +1338,17 @@ void ldst_unit::get_cache_stats(cache_stats &cs) {
 }
 
 void ldst_unit::get_L1D_sub_stats(struct cache_sub_stats &css) const{
-    if(m_L1D)
+    if(m_L1D){
         m_L1D->get_sub_stats(css);
-    for(int i=1;i<33;i++){//bosheng:0324 sum each SM L1D cache diverse(1~32) hit 
-        m_stats->div[i]+=*(m_L1D->L1_request_div_hit+i);
+        if(atm_flag==false){
+             for(int i=1;i<33;i++){//bosheng:0324 sum each SM L1D cache diverse(1~32) hit 
+                 m_stats->div[i]+=*(m_L1D->L1_request_div_hit+i);
+            }
+                m_stats->div1_stats[0]+=*(m_L1D->div_long_count);
+                m_stats->div1_stats[1]+=*(m_L1D->div1_count);
+        }
     }
-    m_stats->div1_stats[0]+=*(m_L1D->div_long_count);
-    m_stats->div1_stats[1]+=*(m_L1D->div1_count);
+   
 }
 void ldst_unit::get_L1C_sub_stats(struct cache_sub_stats &css) const{
     if(m_L1C)
@@ -2200,6 +2222,7 @@ void gpgpu_sim::shader_print_cache_stats( FILE *fout ) const{
         float mem_mean=0;
         float pipeline_mean=0;
         for (unsigned i=0;i<m_shader_config->n_simt_clusters;i++){
+            atm_flag=false;
             m_cluster[i]->get_L1D_sub_stats(css);
 
             fprintf( stdout, "\tL1D_cache_core[%d]: Access = %d, Miss = %d, Miss_rate = %.3lf, Pending_hits = %u, Reservation_fails = %u\n",
@@ -2218,8 +2241,12 @@ void gpgpu_sim::shader_print_cache_stats( FILE *fout ) const{
         fprintf(fout, "\tL1D_total_cache_accesses = %u\n", total_css.accesses);
         fprintf(fout, "\tL1D_total_cache_misses = %u\n", total_css.misses);
         if(total_css.accesses > 0){
-            //l1_miss_rate=(double)total_css.misses / (double)total_css.accesses;
             fprintf(fout, "\tL1D_total_cache_miss_rate = %.4lf\n", (double)total_css.misses / (double)total_css.accesses);
+            
+            // FILE *missrate_write=fopen("temp_missrate.txt","w");
+            // fprintf(missrate_write, "%.4lf", (double)total_css.misses / (double)total_css.accesses);
+            // fclose(missrate_write);
+            
         }
         fprintf(fout, "\tL1D_total_cache_pending_hits = %u\n", total_css.pending_hits);
         fprintf(fout, "\tL1D_total_cache_reservation_fails = %u\n", total_css.res_fails);
@@ -2592,13 +2619,67 @@ unsigned int shader_core_config::max_cta( const kernel_info_t &k ) const
    if (kernel_info->regs > 0)
       result_regs = gpgpu_shader_registers / (padded_cta_size * ((kernel_info->regs+3)&~3));
 
+   //bosheng:220110 ATM method
+   if((gpu_sim_cycle+gpu_tot_sim_cycle)%1000==0)
+   {
+        FILE *ipc_read;
+        FILE *missrate_read;
+        ipc_read=fopen("temp_ipc.txt","a+");
+        missrate_read=fopen("temp_missrate.txt","a+");
+        if(ipc_read!=NULL &&missrate_read!=NULL){
+            fscanf(ipc_read,"%f",&ipc_curr);
+            fscanf(missrate_read,"%f",&missrate_curr);
+            fclose(ipc_read);
+            fclose(missrate_read);
+            remove("temp_ipc.txt");
+            remove("temp_missrate.txt");
+            if(ipc_curr!=ipc_prev){
+                // printf("%f,%f,%f,%f--bobo\n",ipc_curr,missrate_curr,ipc_prev,missrate_prev);
+                printf("%d, %f , %f ,%d\n",tlp_curr,ipc_curr,missrate_curr,gpu_sim_cycle+gpu_tot_sim_cycle);
+                trend=tlp_curr-tlp_prev;
+                if(trend>=0) trend=1;
+                else if(trend<0) trend=-1;
+                ipc_shift=ipc_curr/ipc_prev;
+                missrate_shift=missrate_curr-missrate_prev;
+                if(ipc_shift>1.0 )
+                {   
+                    if(tlp_curr+trend<=max_cta_per_core&&tlp_curr+trend>4)
+                        tlp_next=tlp_curr+trend;
+                }
+                else if(ipc_shift<1.0 )
+                {
+                        if(tlp_curr-trend<=max_cta_per_core&&tlp_curr-trend>4)
+                            tlp_next=tlp_curr-trend;
+                }
+                else if(tlp_curr-tlp_prev<2&&tlp_curr-tlp_prev>-2){
+                        tlp_next=tlp_curr;
+                }
+                if(tlp_curr==tlp_next&&tlp_next<max_cta_per_core)atm_flag++;
+                if(tlp_curr+1<=max_cta_per_core&&atm_flag>=3){
+                    tlp_next=tlp_curr+1;
+                    atm_flag=0;
+                 }
+                if(tlp_next!=tlp_curr)atm_flag=0;
+                // printf(" %d",atm_flag);
+            }
+            tlp_prev=tlp_curr;   
+            ipc_prev=ipc_curr;
+            missrate_prev=missrate_curr;
+            
+        }    
+   }
+    
+    
+    
    //Limit by CTA
-   unsigned int result_cta = max_cta_per_core;
-
+   unsigned int result_cta=tlp_next; //bosheng:220110 control the max cta size 
+   
+//    else result_cta = max_cta_per_core; 
    unsigned result = result_thread;
    result = gs_min2(result, result_shmem);
    result = gs_min2(result, result_regs);
    result = gs_min2(result, result_cta);
+   tlp_curr=result;
 
    static const struct gpgpu_ptx_sim_kernel_info* last_kinfo = NULL;
    if (last_kinfo != kernel_info) {   //Only print out stats if kernel_info struct changes
@@ -2623,7 +2704,7 @@ unsigned int shader_core_config::max_cta( const kernel_info_t &k ) const
        printf ("GPGPU-Sim uArch: ERROR ** Kernel requires more resources than shader has.\n");
        abort();
     }
-
+    
     return result;
 }
 
@@ -3183,7 +3264,7 @@ bool opndcoll_rfu_t::writeback( const warp_inst_t &inst )
 	      }
    }
    int latency=gpu_sim_cycle+gpu_tot_sim_cycle-inst.begin_time;
-   FILE * ptr;
+   FILE *ptr;
    ptr=fopen("./latencyL1L2.csv","a");//bosheng:0914 from issue to writeback 
    if(inst.op_pipe==MEM__OP && inst.warp_div>0){
        fprintf(ptr,"%d,%d,%d,%d,%d,%d,%d\n",m_shader->get_sid(),inst.warp_id(),inst.pc,inst.warp_div,inst.get_issue_cycle(),gpu_sim_cycle+gpu_tot_sim_cycle,latency);

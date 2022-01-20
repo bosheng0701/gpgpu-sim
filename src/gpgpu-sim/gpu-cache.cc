@@ -1235,7 +1235,6 @@ data_cache::process_tag_probe( bool wr,
 // Both the L1 and L2 override this function to provide a means of
 // performing actions specific to each cache when such actions are implemnted.
 
-int cache_flag=0;// bosheng:0324 1 -> l1cache_access  2 -> l2cache_access (to know which cache access)
 
 enum cache_request_status
 data_cache::access( new_addr_type addr,
@@ -1251,7 +1250,7 @@ data_cache::access( new_addr_type addr,
         = m_tag_array->probe( block_addr, cache_index );  
     enum cache_request_status access_status
         = process_tag_probe( wr, probe_status, addr, cache_index, mf, time, events );
-    if(cache_flag == 1 && access_status == 0 && (mf->mf_div < 33 && mf->mf_div > 0 )){ //可能prob時候HIT  access的時候write會出現reserve faile bosheng:0319 change
+    if(mf->cache_num == 1 && access_status == 0 && (mf->mf_div < 33 && mf->mf_div > 0 )){ //可能prob時候HIT  access的時候write會出現reserve faile bosheng:0319 change
         *(L1_request_div_hit+mf->mf_div)+=1;//bosheng:0324  
         m_tag_array->probeL1(block_addr, cache_index,mf);  
     }
@@ -1270,7 +1269,6 @@ l1_cache::access( new_addr_type addr,
                   unsigned time,
                   std::list<cache_event> &events )
 {
-    cache_flag=1;//bosheng:0324
     mf->cache_num=1;
     return data_cache::access( addr, mf, time, events );
 }
@@ -1284,7 +1282,6 @@ l2_cache::access( new_addr_type addr,
                   unsigned time,
                   std::list<cache_event> &events )
 {
-    cache_flag=2;//bosheng:0324
     mf->cache_num=2;
     return data_cache::access( addr, mf, time, events );
 }

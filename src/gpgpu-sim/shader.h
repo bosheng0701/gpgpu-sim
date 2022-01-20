@@ -1260,6 +1260,19 @@ struct shader_core_config : public core_config
     unsigned sid_to_cid( unsigned sid )     const { return sid % n_simt_cores_per_cluster; }
     unsigned cid_to_sid( unsigned cid, unsigned cluster_id ) const { return cluster_id*n_simt_cores_per_cluster + cid; }
 
+//bosheng:0110 ATM data
+    mutable int atmflag=0;
+    mutable float ipc_prev=-1;
+    mutable float ipc_curr=-1;
+    mutable float ipc_shift;
+    mutable int tlp_prev=8;
+    mutable int tlp_curr=8;
+    mutable int tlp_next=8;
+    mutable int trend;
+    mutable float missrate_curr=-1;
+    mutable float missrate_prev=-1;
+    mutable float missrate_shift;
+    mutable int atm_flag=0;
 // data
     char *gpgpu_shader_core_pipeline_opt;
     bool gpgpu_perfect_mem;
@@ -1822,7 +1835,11 @@ public:
     int stall_flag=0;
     int ipc_count=0;
     double last_miss=1;
-
+    // ATM method
+    unsigned long long atm_curr_inst=0;
+    unsigned long long atm_prev_inst=0;
+    unsigned atm_prev_miss=0;
+    unsigned atm_prev_access=0;
     cache_sub_stats total_css;
     // CTA scheduling / hardware thread allocation
     unsigned m_n_active_cta; // number of Cooperative Thread Arrays (blocks) currently running on this shader.

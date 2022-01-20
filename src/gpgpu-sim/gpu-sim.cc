@@ -879,11 +879,11 @@ void gpgpu_sim::clear_executed_kernel_info()
 }
 void gpgpu_sim::gpu_print_stat() 
 {  
-   FILE *statfout = stdout; 
+   FILE *statfout = stdout;
    
    std::string kernel_info_str = executed_kernel_info_string(); 
    fprintf(statfout, "%s", kernel_info_str.c_str()); 
-
+   
    printf("gpu_sim_cycle = %lld\n", gpu_sim_cycle);
    printf("gpu_sim_insn = %lld\n", gpu_sim_insn);
    printf("gpu_ipc = %12.4f\n", (float)gpu_sim_insn / gpu_sim_cycle);
@@ -891,8 +891,13 @@ void gpgpu_sim::gpu_print_stat()
    printf("gpu_tot_sim_insn = %lld\n", gpu_tot_sim_insn+gpu_sim_insn);
    printf("gpu_tot_ipc = %12.4f\n", (float)(gpu_tot_sim_insn+gpu_sim_insn) / (gpu_tot_sim_cycle+gpu_sim_cycle));
    printf("gpu_tot_issued_cta = %lld\n", gpu_tot_issued_cta);
-
-
+   
+   
+   // FILE *ipc_temp=fopen("temp_ipc.txt","w");
+   // fprintf(ipc_temp, "%.4f", (float)(gpu_tot_sim_insn+gpu_sim_insn) / (gpu_tot_sim_cycle+gpu_sim_cycle));
+   // fclose(ipc_temp);
+   
+   
    // performance counter for stalls due to congestion.
    printf("gpu_stall_dramfull = %d\n", gpu_stall_dramfull);
    printf("gpu_stall_icnt2sh    = %d\n", gpu_stall_icnt2sh );
@@ -1115,7 +1120,7 @@ void shader_core_ctx::issue_block2core( kernel_info_t &kernel ) // issued instru
     // initialize the SIMT stacks and fetch hardware
     init_warps( free_cta_hw_id, start_thread, end_thread);
     m_n_active_cta++;
-
+   
     shader_CTA_count_log(m_sid, 1);
    //  printf("GPGPU-Sim uArch: core:%3d, cta:%2u initialized @(%lld,%lld)\n", m_sid, free_cta_hw_id, gpu_sim_cycle, gpu_tot_sim_cycle );
     if(cta_flag[free_cta_hw_id]==0){//bosheng:0901 initialize the cta:num begin time
