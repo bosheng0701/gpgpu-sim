@@ -50,7 +50,7 @@
 #define PRIORITIZE_MSHR_OVER_WB 1
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #define MIN(a,b) (((a)<(b))?(a):(b))
-    
+bool ATM_method = 1; 
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -712,7 +712,7 @@ void shader_core_ctx::issue_warp( register_set& pipe_reg_set, const warp_inst_t*
 bool atm_flag=false;
 void shader_core_ctx::issue(){
     //really is issue;
-    if((gpu_sim_cycle+gpu_tot_sim_cycle)%1000==0){
+    if((gpu_sim_cycle+gpu_tot_sim_cycle)%5000==0){
         FILE *ipc_temp=fopen("temp_ipc.txt","w");
         atm_curr_inst=(get_gpu()->gpu_sim_insn+get_gpu()->gpu_tot_sim_insn-atm_prev_inst);
         fprintf(ipc_temp, "%.2f", (float)(atm_curr_inst/1000.00));
@@ -941,6 +941,7 @@ void scheduler_unit::cycle()
                     valid_inst = true;
                     if(m_shader->idle_flag==1){
                         m_shader->idle_end=gpu_sim_cycle + gpu_tot_sim_cycle;
+                        if(m_shader->idle_end-m_shader->idle_begin>1)
                         m_stats->idle[m_shader->m_sid]+=m_shader->idle_end-m_shader->idle_begin;
                         m_shader->idle_flag=0;
                     }
@@ -1041,7 +1042,7 @@ void scheduler_unit::cycle()
     if( !valid_inst ) {
         if(m_shader->idle_flag==0){
             m_shader->idle_begin=gpu_sim_cycle + gpu_tot_sim_cycle;
-            m_shader->idle_flag=1;  
+            m_shader->idle_flag=1; 
         }
         m_stats->shader_cycle_distro[0]++; // idle or control hazard 
     }   
@@ -2620,7 +2621,7 @@ unsigned int shader_core_config::max_cta( const kernel_info_t &k ) const
       result_regs = gpgpu_shader_registers / (padded_cta_size * ((kernel_info->regs+3)&~3));
 
    //bosheng:220110 ATM method
-   if((gpu_sim_cycle+gpu_tot_sim_cycle)%1000==0)
+   if((gpu_sim_cycle+gpu_tot_sim_cycle)%5000==0)
    {
         FILE *ipc_read;
         FILE *missrate_read;
@@ -2635,32 +2636,31 @@ unsigned int shader_core_config::max_cta( const kernel_info_t &k ) const
             remove("temp_missrate.txt");
             if(ipc_curr!=ipc_prev){
                 // printf("%f,%f,%f,%f--bobo\n",ipc_curr,missrate_curr,ipc_prev,missrate_prev);
-                printf("%d, %f , %f ,%d\n",tlp_curr,ipc_curr,missrate_curr,gpu_sim_cycle+gpu_tot_sim_cycle);
+                // printf("%d, %f , %f ,%d\n",tlp_curr,ipc_curr,missrate_curr,gpu_sim_cycle+gpu_tot_sim_cycle);
                 trend=tlp_curr-tlp_prev;
                 if(trend>=0) trend=1;
                 else if(trend<0) trend=-1;
                 ipc_shift=ipc_curr/ipc_prev;
                 missrate_shift=missrate_curr-missrate_prev;
-                if(ipc_shift>1.0 )
+                if(ipc_shift>1.0 && missrate_shift<0.01)
                 {   
-                    if(tlp_curr+trend<=max_cta_per_core&&tlp_curr+trend>4)
+                    if(tlp_curr+trend<=max_cta_per_core&&tlp_curr+trend>=4)
                         tlp_next=tlp_curr+trend;
                 }
-                else if(ipc_shift<1.0 )
+                else if(ipc_shift<1.0 && missrate_shift>0.01)
                 {
-                        if(tlp_curr-trend<=max_cta_per_core&&tlp_curr-trend>4)
+                        if(tlp_curr-trend<=max_cta_per_core&&tlp_curr-trend>=4)
                             tlp_next=tlp_curr-trend;
                 }
                 else if(tlp_curr-tlp_prev<2&&tlp_curr-tlp_prev>-2){
                         tlp_next=tlp_curr;
                 }
                 if(tlp_curr==tlp_next&&tlp_next<max_cta_per_core)atm_flag++;
-                if(tlp_curr+1<=max_cta_per_core&&atm_flag>=3){
+                if(tlp_curr+1<=max_cta_per_core&&atm_flag>=4){
                     tlp_next=tlp_curr+1;
                     atm_flag=0;
                  }
                 if(tlp_next!=tlp_curr)atm_flag=0;
-                // printf(" %d",atm_flag);
             }
             tlp_prev=tlp_curr;   
             ipc_prev=ipc_curr;
@@ -2670,11 +2670,11 @@ unsigned int shader_core_config::max_cta( const kernel_info_t &k ) const
    }
     
     
-    
-   //Limit by CTA
-   unsigned int result_cta=tlp_next; //bosheng:220110 control the max cta size 
    
-//    else result_cta = max_cta_per_core; 
+   //Limit by CTA
+   unsigned int result_cta=max_cta_per_core; //bosheng:220110 control the max cta size 
+   if(ATM_method)
+        result_cta=tlp_next;
    unsigned result = result_thread;
    result = gs_min2(result, result_shmem);
    result = gs_min2(result, result_regs);

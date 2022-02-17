@@ -133,7 +133,7 @@ private:
    unsigned m_timestamp;  // set to gpu_sim_cycle+gpu_tot_sim_cycle at struct creation
    unsigned m_timestamp2; // set to gpu_sim_cycle+gpu_tot_sim_cycle when pushed onto icnt to shader; only used for reads
    unsigned m_icnt_receive_time; // set to gpu_sim_cycle + interconnect_latency when fixed icnt latency mode is enabled
-   unsigned m_begin_time; 
+   unsigned m_begin_time=0; 
    // requesting instruction (put last so mem_fetch prints nicer in gdb)
    warp_inst_t m_inst;
 

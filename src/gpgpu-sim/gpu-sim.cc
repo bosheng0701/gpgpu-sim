@@ -1191,8 +1191,9 @@ void gpgpu_sim::cycle()
    }
     if (clock_mask & ICNT) {
         // pop from memory controller to interconnect
+        bool mf_from_fast_queue = false; //bosheng: L2PCQ
         for (unsigned i=0;i<m_memory_config->m_n_mem_sub_partition;i++) {
-            mem_fetch* mf = m_memory_sub_partition[i]->top();
+            mem_fetch* mf = m_memory_sub_partition[i]->top(&mf_from_fast_queue);
             if (mf) {
                 unsigned response_size = mf->get_is_write()?mf->get_ctrl_size():mf->size();
                 if ( ::icnt_has_buffer( m_shader_config->mem2device(i), response_size ) ) {
@@ -1202,12 +1203,12 @@ void gpgpu_sim::cycle()
                         //printf("%d,%d,%d,%d,%d--bobo\n",mf->cache_num,mf->get_pc(),gpu_sim_cycle+gpu_tot_sim_cycle,mf->get_timestamp(),gpu_sim_cycle+gpu_tot_sim_cycle-mf->get_timestamp());
                     mf->set_status(IN_ICNT_TO_SHADER,gpu_sim_cycle+gpu_tot_sim_cycle);
                     ::icnt_push( m_shader_config->mem2device(i), mf->get_tpc(), mf, response_size );
-                    m_memory_sub_partition[i]->pop();
+                    m_memory_sub_partition[i]->pop(mf_from_fast_queue);
                 } else {
                     gpu_stall_icnt2sh++;
                 }
             } else {
-               m_memory_sub_partition[i]->pop();
+               m_memory_sub_partition[i]->pop(mf_from_fast_queue);
             }
         }
     }

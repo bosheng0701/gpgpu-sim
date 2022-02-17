@@ -155,8 +155,8 @@ public:
 
    bool full() const;
    void push( class mem_fetch* mf, unsigned long long clock_cycle );
-   class mem_fetch* pop(); 
-   class mem_fetch* top();
+   class mem_fetch* pop(bool mf_from_fast_queue); 
+   class mem_fetch* top(bool *mf_from_fast_queue);
    void set_done( mem_fetch *mf );
 
    unsigned flushL2();
@@ -176,17 +176,21 @@ public:
 
    void accumulate_L2cache_stats(class cache_stats &l2_stats) const;
    void get_L2cache_sub_stats(struct cache_sub_stats &css) const;
-
-   void set_all_num(unsigned int num,unsigned int all){rop_num+=num;all_num+=all;}//bosheng:211013 set_rop_rate
-   int get_rop_rate(){return rop_num;}   //bosheng:211013 set_rop_rate
-   int get_all_rate(){return all_num;}   //bosheng:211013 set_rop_rate
-
-   unsigned icnt_to_L2;     //bosheng:211126 L2 stall reason
+   
+   //bosheng:211013 set_rop_rate
+   void set_all_num(unsigned int num,unsigned int all){rop_num+=num;all_num+=all;}
+   int get_rop_rate(){return rop_num;}   
+   int get_all_rate(){return all_num;}   
+   //bosheng:211126 L2 stall reason    
+   unsigned icnt_to_L2;     
    unsigned L2_to_Dram;
    unsigned Dram_to_L2;
    unsigned L2_to_icnt;
    unsigned data_port_full;
    unsigned mshr_full;
+   //bosheng:L2PCQ 220213 
+   fifo_pipeline<mem_fetch> *m_icnt_L2_queue_cta_fs;
+   fifo_pipeline<mem_fetch> *m_L2_icnt_queue_cta_fs;
 private:
 // data
    unsigned m_id;  //< the global sub partition ID
@@ -211,6 +215,7 @@ private:
    fifo_pipeline<mem_fetch> *m_dram_L2_queue;
    fifo_pipeline<mem_fetch> *m_L2_icnt_queue; // L2 cache hit response queue
 
+
    class mem_fetch *L2dramout; 
    unsigned long long int wb_addr;
 
@@ -233,9 +238,7 @@ public:
     virtual void push(mem_fetch *mf) 
     {
         mf->set_status(IN_PARTITION_L2_TO_DRAM_QUEUE,0/*FIXME*/);
-        //printf("l2_to_dram %p\n",mf->get_addr());
         m_unit->m_L2_dram_queue->push(mf);
-       // m_unit->m_L2_dram_queue->print();
     }
 private:
     memory_sub_partition *m_unit;
