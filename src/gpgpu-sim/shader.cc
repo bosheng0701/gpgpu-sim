@@ -709,7 +709,7 @@ void shader_core_ctx::issue_warp( register_set& pipe_reg_set, const warp_inst_t*
     m_scoreboard->reserveRegisters(*pipe_reg);
     m_warp[warp_id].set_next_pc(next_inst->pc + next_inst->isize);
 }
-bool atm_flag=false;
+bool atm_cache_flag=false;
 void shader_core_ctx::issue(){
     //really is issue;
     if((gpu_sim_cycle+gpu_tot_sim_cycle)%5000==0){
@@ -719,7 +719,7 @@ void shader_core_ctx::issue(){
         fclose(ipc_temp);
         atm_prev_inst=get_gpu()->gpu_sim_insn+get_gpu()->gpu_tot_sim_insn;
         total_css.clear();
-        atm_flag=true;
+        atm_cache_flag=true;
         m_cluster->get_L1D_sub_stats(total_css);
         if(total_css.accesses!=0){
             FILE *missrate_write=fopen("temp_missrate.txt","w");
@@ -1341,7 +1341,7 @@ void ldst_unit::get_cache_stats(cache_stats &cs) {
 void ldst_unit::get_L1D_sub_stats(struct cache_sub_stats &css) const{
     if(m_L1D){
         m_L1D->get_sub_stats(css);
-        if(atm_flag==false){
+        if(atm_cache_flag==false){
              for(int i=1;i<33;i++){//bosheng:0324 sum each SM L1D cache diverse(1~32) hit 
                  m_stats->div[i]+=*(m_L1D->L1_request_div_hit+i);
             }
@@ -2223,7 +2223,7 @@ void gpgpu_sim::shader_print_cache_stats( FILE *fout ) const{
         float mem_mean=0;
         float pipeline_mean=0;
         for (unsigned i=0;i<m_shader_config->n_simt_clusters;i++){
-            atm_flag=false;
+            atm_cache_flag=false;
             m_cluster[i]->get_L1D_sub_stats(css);
 
             fprintf( stdout, "\tL1D_cache_core[%d]: Access = %d, Miss = %d, Miss_rate = %.3lf, Pending_hits = %u, Reservation_fails = %u\n",
