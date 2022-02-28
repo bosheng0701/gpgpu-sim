@@ -191,6 +191,14 @@ public:
    //bosheng:L2PCQ 220213 
    fifo_pipeline<mem_fetch> *m_icnt_L2_queue_cta_fs;
    fifo_pipeline<mem_fetch> *m_L2_icnt_queue_cta_fs;
+   int L2_to_icnt_count=0;
+   int L2_to_icnt_exe_time=0;
+   int L2_to_icnt_exe_mean=0;
+   int L2_to_icnt_pop=0;
+   int icnt_to_L2_count=0;
+   int icnt_to_L2_exe_time=0;
+   int icnt_to_L2_exe_mean=0;
+   int icnt_to_L2_pop=0;
 private:
 // data
    unsigned m_id;  //< the global sub partition ID

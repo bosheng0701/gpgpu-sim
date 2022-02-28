@@ -47,6 +47,8 @@ mem_fetch::mem_fetch( const mem_access_t &access,
        m_inst = *inst;
        mf_div = m_inst.warp_div; //bosheng:0319 get diverse
        m_begin_time=m_inst.begin_time;
+       m_warp_cta_id=m_inst.temp_warp_cta_id;
+       m_cta_begin_time=m_inst.cta_begin_time;
        assert( wid == m_inst.warp_id() );
    }
    m_data_size = access.get_size();

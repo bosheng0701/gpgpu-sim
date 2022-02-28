@@ -45,9 +45,9 @@
 #include "mem_latency_stat.h"
 #include "l2cache_trace.h"
 //bosheng:L2PCQ switch
-bool use_L2toICNT_fs_queue = 1;
-bool use_ICNTtoL2_fs_queue = 1; 
-
+bool use_L2toICNT_fs_queue = 0;
+bool use_ICNTtoL2_fs_queue = 0; 
+float alpha_set=1;
 
 mem_fetch * partition_mf_allocator::alloc(new_addr_type addr, mem_access_type type, unsigned size, bool wr ) const 
 {
@@ -341,9 +341,9 @@ memory_sub_partition::~memory_sub_partition()
 void memory_sub_partition::cache_cycle( unsigned cycle )
 {
     
-    if (m_L2_icnt_queue->full()) L2_to_icnt++;
+    if (m_L2_icnt_queue->full()||m_L2_icnt_queue_cta_fs->full()) L2_to_icnt++;
     if (m_L2_dram_queue->full()) L2_to_Dram++;
-    if (m_icnt_L2_queue->full()) icnt_to_L2++;
+    if (m_icnt_L2_queue->full()||m_icnt_L2_queue_cta_fs->full()) icnt_to_L2++;
     if (m_dram_L2_queue->full()) Dram_to_L2++;
     if (!m_L2cache->data_port_free()) data_port_full++;
     
@@ -354,10 +354,20 @@ void memory_sub_partition::cache_cycle( unsigned cycle )
            if(mf->get_access_type() != L2_WR_ALLOC_R){ // Don't pass write allocate read request back to upper level cache
 				mf->set_reply();
 				mf->set_status(IN_PARTITION_L2_TO_ICNT_QUEUE,gpu_sim_cycle+gpu_tot_sim_cycle);
-				if(use_L2toICNT_fs_queue &&(gpu_sim_cycle+gpu_tot_sim_cycle-mf->get_m_begin_time())>300 )
+                int exe_time=0;
+                if(mf->get_m_warp_cta_begin_time()!=0){
+                    exe_time=gpu_sim_cycle+gpu_tot_sim_cycle-mf->get_m_warp_cta_begin_time();
+                    L2_to_icnt_count++;
+                    L2_to_icnt_exe_time+=exe_time;
+                    if(gpu_sim_cycle+gpu_tot_sim_cycle%1000==0)
+                    L2_to_icnt_exe_mean=(L2_to_icnt_exe_time/L2_to_icnt_count);
+                }
+                bool pass_L2PCQ=((mf->get_m_warp_cta_begin_time()!=0 )&& (exe_time>alpha_set*L2_to_icnt_exe_mean)) ||mf->mf_div<=3; //
+				if(use_L2toICNT_fs_queue && pass_L2PCQ)
                   m_L2_icnt_queue_cta_fs->push(mf);
                 else
                   m_L2_icnt_queue->push(mf);
+                  
            }else{
 				m_request_tracker.erase(mf);
 				delete mf;
@@ -376,12 +386,20 @@ void memory_sub_partition::cache_cycle( unsigned cycle )
             }
         } else if ( !m_L2_icnt_queue->full() && !m_L2_icnt_queue_cta_fs->full()) {
             mf->set_status(IN_PARTITION_L2_TO_ICNT_QUEUE,gpu_sim_cycle+gpu_tot_sim_cycle);
-            if(use_L2toICNT_fs_queue &&(gpu_sim_cycle+gpu_tot_sim_cycle-mf->get_m_begin_time())>300 )
+            int exe_time=0;
+            if(mf->get_m_warp_cta_begin_time()!=0){
+                exe_time=gpu_sim_cycle+gpu_tot_sim_cycle-mf->get_m_warp_cta_begin_time();
+                L2_to_icnt_count++;
+                L2_to_icnt_exe_time+=exe_time;
+                 if(gpu_sim_cycle+gpu_tot_sim_cycle%1000==0)
+                L2_to_icnt_exe_mean=(L2_to_icnt_exe_time/L2_to_icnt_count);
+            }
+            bool pass_L2PCQ=((mf->get_m_warp_cta_begin_time()!=0 )&& (exe_time>alpha_set*L2_to_icnt_exe_mean)) ||mf->mf_div<=3;// 
+            if(use_L2toICNT_fs_queue &&pass_L2PCQ)
                 m_L2_icnt_queue_cta_fs->push(mf);
             else
                 m_L2_icnt_queue->push(mf);
             m_dram_L2_queue->pop();
-            
         }
     }
 
@@ -392,12 +410,19 @@ void memory_sub_partition::cache_cycle( unsigned cycle )
     // new L2 texture accesses and/or non-texture accesses
     if ( !m_L2_dram_queue->full() && (!m_icnt_L2_queue->empty() || !m_icnt_L2_queue_cta_fs->empty()) ) {
         mem_fetch *mf = NULL;
+        mem_fetch *mf1=m_icnt_L2_queue->top();
         if(use_ICNTtoL2_fs_queue){   
             mf = m_icnt_L2_queue_cta_fs->top();
-            if(mf)
-                mf_from_icnt_L2_fsqueue = true; 
-            else
+            if(mf){
+                mf_from_icnt_L2_fsqueue = true;
+                if(mf1 && mf->get_m_warp_cta_begin_time()>mf1->get_m_warp_cta_begin_time()){
+                    mf=m_icnt_L2_queue->top();
+                    mf_from_icnt_L2_fsqueue = false; 
+                }
+            }
+            else{
                 mf = m_icnt_L2_queue->top(); 
+            }
         }
         else{
             mf = m_icnt_L2_queue->top();
@@ -426,7 +451,18 @@ void memory_sub_partition::cache_cycle( unsigned cycle )
                         } else {
                             mf->set_reply();
                             mf->set_status(IN_PARTITION_L2_TO_ICNT_QUEUE,gpu_sim_cycle+gpu_tot_sim_cycle);
-                            if(use_L2toICNT_fs_queue && (gpu_sim_cycle+gpu_tot_sim_cycle-mf->get_m_begin_time())>300)
+                            int exe_time=0;
+                            if(mf->get_m_warp_cta_begin_time()!=0){
+                                exe_time=gpu_sim_cycle+gpu_tot_sim_cycle-mf->get_m_warp_cta_begin_time();
+                                L2_to_icnt_count++;
+                                L2_to_icnt_exe_time+=exe_time;
+                                 if(gpu_sim_cycle+gpu_tot_sim_cycle%1000==0)
+                                L2_to_icnt_exe_mean=(L2_to_icnt_exe_time/L2_to_icnt_count);
+                            }
+                            bool pass_L2PCQ=((mf->get_m_warp_cta_begin_time()!=0) && (exe_time>alpha_set*L2_to_icnt_exe_mean)) ||mf->mf_div<=3 ;//
+                            // if(!pass_L2PCQ)
+                            //     printf("exe:%d,count:%d,total_exe:%d,mean:%d--%d\n",exe_time,L2_to_icnt_count,L2_to_icnt_exe_time,L2_to_icnt_exe_mean,gpu_sim_cycle+gpu_tot_sim_cycle-mf->get_m_begin_time());   
+                            if(use_L2toICNT_fs_queue && pass_L2PCQ)
                                 m_L2_icnt_queue_cta_fs->push(mf);
                             else
                                 m_L2_icnt_queue->push(mf);
@@ -471,7 +507,16 @@ void memory_sub_partition::cache_cycle( unsigned cycle )
     if( !m_rop.empty() && (cycle >= m_rop.front().ready_cycle) && !m_icnt_L2_queue->full() && !m_icnt_L2_queue_cta_fs->full() ) {
         mem_fetch* mf = m_rop.front().req;
         m_rop.pop();
-        if(use_ICNTtoL2_fs_queue && (gpu_sim_cycle+gpu_tot_sim_cycle-mf->get_m_begin_time())>50)
+        int exe_time=0;
+            if(mf->get_m_warp_cta_begin_time()!=0){
+                exe_time=gpu_sim_cycle+gpu_tot_sim_cycle-mf->get_m_warp_cta_begin_time();
+                icnt_to_L2_count++;
+                icnt_to_L2_exe_time+=exe_time;
+                 if(gpu_sim_cycle+gpu_tot_sim_cycle%1000==0)
+                icnt_to_L2_exe_mean=(icnt_to_L2_exe_time/icnt_to_L2_count);
+            }
+        bool pass_L2PCQ=((mf->get_m_warp_cta_begin_time()!=0)&& (exe_time>alpha_set*icnt_to_L2_exe_mean)) ||mf->mf_div<=3;//
+        if(use_ICNTtoL2_fs_queue && pass_L2PCQ)
             m_icnt_L2_queue_cta_fs->push(mf);
         else
             m_icnt_L2_queue->push(mf);
@@ -603,11 +648,19 @@ void memory_sub_partition::push( mem_fetch* req, unsigned long long cycle )
         m_request_tracker.insert(req);
         m_stats->memlatstat_icnt2mem_pop(req);
         if( req->istexture() ) {
-            if(use_ICNTtoL2_fs_queue && (gpu_sim_cycle+gpu_tot_sim_cycle-req->get_m_begin_time())>50)
+            int exe_time=0;
+            if(req->get_m_warp_cta_begin_time()!=0){
+                exe_time=gpu_sim_cycle+gpu_tot_sim_cycle-req->get_m_warp_cta_begin_time();
+                icnt_to_L2_count++;
+                icnt_to_L2_exe_time+=exe_time;
+                 if(gpu_sim_cycle+gpu_tot_sim_cycle%1000==0)
+                icnt_to_L2_exe_mean=(icnt_to_L2_exe_time/icnt_to_L2_count);
+            }
+            bool pass_L2PCQ=((req->get_m_warp_cta_begin_time()!=0)&& (exe_time>alpha_set*icnt_to_L2_exe_mean)) ||req->mf_div<=3;//
+            if(use_ICNTtoL2_fs_queue && pass_L2PCQ)
                 m_icnt_L2_queue_cta_fs->push(req);
             else
                 m_icnt_L2_queue->push(req);
-            
             // set_all_num(0,1);//bosheng:211013 set_rop_rate
             req->set_status(IN_PARTITION_ICNT_TO_L2_QUEUE,gpu_sim_cycle+gpu_tot_sim_cycle);
         } else {
@@ -634,6 +687,7 @@ mem_fetch* memory_sub_partition::pop(bool mf_from_fast_queue)
             delete mf;
             mf = NULL;
         } 
+        L2_to_icnt_pop++;
         return mf;
     }else{
         mem_fetch* mf = m_L2_icnt_queue->pop();
@@ -643,7 +697,7 @@ mem_fetch* memory_sub_partition::pop(bool mf_from_fast_queue)
         if( mf && (mf->get_access_type() == L2_WRBK_ACC || mf->get_access_type() == L1_WRBK_ACC) ) {
             delete mf;
             mf = NULL;
-        } 
+        }
         return mf;
     }
 }
@@ -651,26 +705,30 @@ mem_fetch* memory_sub_partition::pop(bool mf_from_fast_queue)
 mem_fetch* memory_sub_partition::top(bool *mf_from_fast_queue) 
 {
     mem_fetch *mf = m_L2_icnt_queue_cta_fs->top();
+    mem_fetch *mf1=m_L2_icnt_queue->top();
     if(mf){
         *mf_from_fast_queue= true;
-        if( mf && (mf->get_access_type() == L2_WRBK_ACC || mf->get_access_type() == L1_WRBK_ACC) ) {
-            m_L2_icnt_queue_cta_fs->pop();
-            m_request_tracker.erase(mf);
-            delete mf;
-            mf = NULL;
+        if(mf1 && mf->get_m_warp_cta_begin_time()>mf1->get_m_warp_cta_begin_time()){
+            *mf_from_fast_queue = false;
+            mf = m_L2_icnt_queue->top();
         }
-        return mf;
-    }else{
+    }   
+    else{
         *mf_from_fast_queue = false;
         mf = m_L2_icnt_queue->top();
-        if( mf && (mf->get_access_type() == L2_WRBK_ACC || mf->get_access_type() == L1_WRBK_ACC) ) {
-            m_L2_icnt_queue->pop();
-            m_request_tracker.erase(mf);
-            delete mf;
-            mf = NULL;
-        }
-        return mf;
+    }   
+    if( mf && (mf->get_access_type() == L2_WRBK_ACC || mf->get_access_type() == L1_WRBK_ACC) ) {
+        
+        if(*mf_from_fast_queue==true)
+        m_L2_icnt_queue_cta_fs->pop();
+        else
+        m_L2_icnt_queue->pop();
+
+        m_request_tracker.erase(mf);
+        delete mf;
+        mf = NULL;
     }
+    return mf;
 }
 
 void memory_sub_partition::set_done( mem_fetch *mf )

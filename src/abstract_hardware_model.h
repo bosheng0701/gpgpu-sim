@@ -828,7 +828,8 @@ public:
     int warp_div; //TODO:03/19 change
     // modifiers
     int begin_time=0;
-    
+    int temp_warp_cta_id;
+    int cta_begin_time;
     void broadcast_barrier_reduction( const active_mask_t& access_mask);
     void do_atomic(bool forceDo=false);
     void do_atomic( const active_mask_t& access_mask, bool forceDo=false );
@@ -836,7 +837,7 @@ public:
     { 
         m_empty=true; 
     }
-    void issue( const active_mask_t &mask, unsigned warp_id, unsigned long long cycle, int dynamic_warp_id ) 
+    void issue( const active_mask_t &mask, unsigned warp_id, unsigned long long cycle, int dynamic_warp_id,int temp_cta_id,unsigned cta_time) 
     {
         m_warp_active_mask = mask;
         m_warp_issued_mask = mask; 
@@ -847,6 +848,8 @@ public:
         cycles = initiation_interval;
         m_cache_hit=false;
         m_empty=false;
+        warp_cta_id=temp_cta_id;
+        warp_cta_begin_time=cta_time;
     }
     const active_mask_t & get_active_mask() const
     {
@@ -978,6 +981,8 @@ protected:
     bool m_is_printf;
     unsigned m_warp_id;
     unsigned m_dynamic_warp_id; 
+    unsigned warp_cta_id;
+    unsigned warp_cta_begin_time;
     const core_config *m_config; 
     active_mask_t m_warp_active_mask; // dynamic active mask for timing model (after predication)
     active_mask_t m_warp_issued_mask; // active mask at issue (prior to predication test) -- for instruction counting

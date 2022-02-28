@@ -339,7 +339,7 @@ void shader_core_ctx::init_warps( unsigned cta_id, unsigned start_thread, unsign
                 }
             }
             m_simt_stack[i]->launch(start_pc,active_threads);
-            m_warp[i].init(start_pc,cta_id,i,active_threads, m_dynamic_warp_id);
+            m_warp[i].init(start_pc,cta_id,i,active_threads, m_dynamic_warp_id,gpu_sim_cycle+gpu_tot_sim_cycle);
             ++m_dynamic_warp_id;
             m_not_completed += n_active;
       }
@@ -694,7 +694,7 @@ void shader_core_ctx::issue_warp( register_set& pipe_reg_set, const warp_inst_t*
     
     assert(next_inst->valid());
     **pipe_reg = *next_inst; // static instruction information
-    (*pipe_reg)->issue( active_mask, warp_id, gpu_tot_sim_cycle + gpu_sim_cycle, m_warp[warp_id].get_dynamic_warp_id() ); // dynamic instruction information
+    (*pipe_reg)->issue( active_mask, warp_id, gpu_tot_sim_cycle + gpu_sim_cycle, m_warp[warp_id].get_dynamic_warp_id(),m_warp[warp_id].get_cta_id(),m_warp[warp_id].get_cta_begin_time() ); // dynamic instruction information
     m_stats->shader_cycle_distro[2+(*pipe_reg)->active_count()]++;
     func_exec_inst( **pipe_reg );
     if( next_inst->op == BARRIER_OP ){
@@ -2642,7 +2642,7 @@ unsigned int shader_core_config::max_cta( const kernel_info_t &k ) const
                 else if(trend<0) trend=-1;
                 ipc_shift=ipc_curr/ipc_prev;
                 missrate_shift=missrate_curr-missrate_prev;
-                if(ipc_shift>1.0 && missrate_shift<0.01)
+                if(ipc_shift>1.0 &&missrate_shift<0.01)
                 {   
                     if(tlp_curr+trend<=max_cta_per_core&&tlp_curr+trend>=4)
                         tlp_next=tlp_curr+trend;

@@ -108,12 +108,15 @@ public:
         m_last_fetch=0;
         m_next=0;
         m_inst_at_barrier=NULL;
+        m_cta_begin_time=0;
     }
     void init( address_type start_pc,
                unsigned cta_id,
                unsigned wid,
                const std::bitset<MAX_WARP_SIZE> &active,
-               unsigned dynamic_warp_id )
+               unsigned dynamic_warp_id,
+               unsigned begintime
+               )
     {
         m_cta_id=cta_id;
         m_warp_id=wid;
@@ -124,6 +127,7 @@ public:
         n_completed   -= active.count(); // active threads are not yet completed
         m_active_threads = active;
         m_done_exit=false;
+        m_cta_begin_time=begintime;
     }
 
     bool functional_done() const;
@@ -226,6 +230,7 @@ public:
 
     unsigned get_dynamic_warp_id() const { return m_dynamic_warp_id; }
     unsigned get_warp_id() const { return m_warp_id; }
+    unsigned get_cta_begin_time() const { return m_cta_begin_time; }
 
 private:
     static const unsigned IBUFFER_SIZE=2;
@@ -233,6 +238,7 @@ private:
     unsigned m_cta_id;
     unsigned m_warp_id;
     unsigned m_warp_size;
+    unsigned m_cta_begin_time;
     unsigned m_dynamic_warp_id;
 
     address_type m_next_pc;
@@ -1267,7 +1273,7 @@ struct shader_core_config : public core_config
     mutable float ipc_shift;
     mutable int tlp_prev=8;
     mutable int tlp_curr=8;
-    mutable int tlp_next=8;
+    mutable int tlp_next=4;
     mutable int trend;
     mutable float missrate_curr=-1;
     mutable float missrate_prev=-1;
