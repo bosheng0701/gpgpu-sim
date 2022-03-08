@@ -51,7 +51,9 @@
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #define MIN(a,b) (((a)<(b))?(a):(b))
 bool ATM_method = 1; 
-
+bool TISD_swith= 0;
+int num_bypass= 1;
+unsigned warp_div_count[33]={0};
 /////////////////////////////////////////////////////////////////////////////
 
 std::list<unsigned> shader_core_ctx::get_regs_written( const inst_t &fvt ) const
@@ -1478,6 +1480,8 @@ ldst_unit::process_cache_access( cache_t* cache,
         //inst.clear_active( access.get_warp_mask() ); // threads in mf writeback when mf returns
         inst.accessq_pop_back();
     }
+    if(result== NO_RC_FAIL)
+        warp_div_count[inst.warp_div]++;
     if( !inst.accessq_empty() )
         result = BK_CONF;
     return result;
@@ -1545,17 +1549,11 @@ bool ldst_unit::memory_cycle( warp_inst_t &inst, mem_stage_stall_type &stall_rea
    const mem_access_t &access = inst.accessq_back();
    
     //bosheng:220109 Method switch
-   char method_name[20];
-   int num_bypass;
-   FILE *method=fopen("method.config","r");
-   while (strcmp(method_name,"bypass")!=0)
-        fscanf(method,"%s %d %*s",method_name,&num_bypass);
-   fclose(method);
-    
-    if(num_bypass>0 && inst.warp_div>num_bypass) //bosheng:1126 bypass diverse N
-    {
-        inst.cache_op=CACHE_GLOBAL;
-    }
+    if(TISD_swith)
+        if(num_bypass>0 && inst.warp_div>num_bypass) //bosheng:1126 bypass diverse N
+        {
+            inst.cache_op=CACHE_GLOBAL;
+        }
     
 
    bool bypassL1D = false; 
@@ -2213,7 +2211,10 @@ void gpgpu_sim::shader_print_cache_stats( FILE *fout ) const{
         fprintf(fout, "\tL1I_total_cache_pending_hits = %u\n", total_css.pending_hits);
         fprintf(fout, "\tL1I_total_cache_reservation_fails = %u\n", total_css.res_fails);
     }
-
+    fprintf(fout, "\n=========div stats =========\n");
+    for (unsigned i=0;i<33;i++ ){
+        fprintf(fout,"warp div %u  = %u \n", i , warp_div_count[i]);
+    }
     // L1D
     if(!m_shader_config->m_L1D_config.disabled()){
         total_css.clear();

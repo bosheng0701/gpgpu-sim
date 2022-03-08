@@ -47,6 +47,8 @@
 //bosheng:L2PCQ switch
 bool use_L2toICNT_fs_queue = 0;
 bool use_ICNTtoL2_fs_queue = 0; 
+bool use_L2toDRAM_fs_queue = 0;    //NOTE:change with l2cache.h 237.238.239 line.
+bool use_DRAMtoL2_fs_queue = 0;
 float alpha_set=1;
 
 mem_fetch * partition_mf_allocator::alloc(new_addr_type addr, mem_access_type type, unsigned size, bool wr ) const 
@@ -227,11 +229,13 @@ void memory_partition_unit::dram_cycle()
         // L2->DRAM queue to DRAM latency queue
         // Arbitrate among multiple L2 subpartitions 
         int last_issued_partition = m_arbitration_metadata.last_borrower(); 
+        int L2_dram_queue_not_empty_flag = 0; //0 is empty , 1 is L2_to_dram queue not empty ,2 is L2_to_dram queue not empty
         for (unsigned p = 0; p < m_config->m_n_sub_partition_per_memory_channel; p++) {
             int spid = (p + last_issued_partition + 1) % m_config->m_n_sub_partition_per_memory_channel; 
-            if (!m_sub_partition[spid]->L2_dram_queue_empty() && can_issue_to_dram(spid)) {
-                mem_fetch *mf = m_sub_partition[spid]->L2_dram_queue_top();
-                m_sub_partition[spid]->L2_dram_queue_pop();
+            m_sub_partition[spid]->L2_dram_queue_empty(&L2_dram_queue_not_empty_flag);
+            if ((L2_dram_queue_not_empty_flag != 0) && can_issue_to_dram(spid)) {
+                mem_fetch *mf = m_sub_partition[spid]->L2_dram_queue_top(L2_dram_queue_not_empty_flag);
+                m_sub_partition[spid]->L2_dram_queue_pop(L2_dram_queue_not_empty_flag);
                 MEMPART_DPRINTF("Issue mem_fetch request %p from sub partition %d to dram\n", mf, spid); 
                 dram_delay_t d;
                 d.req = mf;
@@ -324,6 +328,9 @@ memory_sub_partition::memory_sub_partition( unsigned sub_partition_id,
     m_L2_icnt_queue = new fifo_pipeline<mem_fetch>("L2-to-icnt",0,L2_icnt);
     m_icnt_L2_queue_cta_fs = new fifo_pipeline<mem_fetch>("icnt-to-L2-cta-fs",0,128); //bosheng:L2PCQ 220213 
     m_L2_icnt_queue_cta_fs = new fifo_pipeline<mem_fetch>("L2-to-icnt-cta-fs",0,128);
+    m_L2_dram_queue_cta_fs = new fifo_pipeline<mem_fetch>("L2-to-dram-cta-fs",0,128); 
+    m_dram_L2_queue_cta_fs = new fifo_pipeline<mem_fetch>("dram-to-L2-cta-fs",0,128);
+
     wb_addr=-1;
 }
 
@@ -376,13 +383,24 @@ void memory_sub_partition::cache_cycle( unsigned cycle )
     }
 
     // DRAM to L2 (texture) and icnt (not texture)
-    if ( !m_dram_L2_queue->empty() ) {
-        mem_fetch *mf = m_dram_L2_queue->top();
+    if ( !m_dram_L2_queue->empty() || !m_dram_L2_queue_cta_fs->empty()) {
+        bool mf_from_dram_L2_fsqueue = false;
+        mem_fetch *mf = NULL;
+        if(!m_dram_L2_queue_cta_fs->empty())
+        {
+            mf_from_dram_L2_fsqueue = true;
+            mf=m_dram_L2_queue_cta_fs->top();
+        }  
+        else
+            mf = m_dram_L2_queue->top();
         if ( !m_config->m_L2_config.disabled() && m_L2cache->waiting_for_fill(mf) ) {
             if (m_L2cache->fill_port_free()) {
                 mf->set_status(IN_PARTITION_L2_FILL_QUEUE,gpu_sim_cycle+gpu_tot_sim_cycle);
                 m_L2cache->fill(mf,gpu_sim_cycle+gpu_tot_sim_cycle);
-                m_dram_L2_queue->pop();
+                if(mf_from_dram_L2_fsqueue)
+                  m_dram_L2_queue_cta_fs->pop();
+                else
+                   m_dram_L2_queue->pop();
             }
         } else if ( !m_L2_icnt_queue->full() && !m_L2_icnt_queue_cta_fs->full()) {
             mf->set_status(IN_PARTITION_L2_TO_ICNT_QUEUE,gpu_sim_cycle+gpu_tot_sim_cycle);
@@ -395,11 +413,21 @@ void memory_sub_partition::cache_cycle( unsigned cycle )
                 L2_to_icnt_exe_mean=(L2_to_icnt_exe_time/L2_to_icnt_count);
             }
             bool pass_L2PCQ=((mf->get_m_warp_cta_begin_time()!=0 )&& (exe_time>alpha_set*L2_to_icnt_exe_mean)) ||mf->mf_div<=3;// 
-            if(use_L2toICNT_fs_queue &&pass_L2PCQ)
-                m_L2_icnt_queue_cta_fs->push(mf);
+            if(use_L2toICNT_fs_queue && mf_from_dram_L2_fsqueue)
+            {
+               m_L2_icnt_queue_cta_fs->push(mf);
+               m_dram_L2_queue_cta_fs->pop();
+            }
+            else if(use_L2toICNT_fs_queue && pass_L2PCQ )
+            {
+               m_L2_icnt_queue_cta_fs->push(mf);
+               m_dram_L2_queue->pop();
+            }
             else
-                m_L2_icnt_queue->push(mf);
-            m_dram_L2_queue->pop();
+            {
+               m_L2_icnt_queue->push(mf);
+               m_dram_L2_queue->pop();
+            } 
         }
     }
 
@@ -494,11 +522,27 @@ void memory_sub_partition::cache_cycle( unsigned cycle )
         } else {
             // L2 is disabled or non-texture access to texture-only L2
             mf->set_status(IN_PARTITION_L2_TO_DRAM_QUEUE,gpu_sim_cycle+gpu_tot_sim_cycle);
-            m_L2_dram_queue->push(mf);
-            if(mf_from_icnt_L2_fsqueue)
-                m_icnt_L2_queue_cta_fs->pop();
-            else
-                m_icnt_L2_queue->pop();
+            int exe_time=0;
+            if(mf->get_m_warp_cta_begin_time()!=0){
+                exe_time=gpu_sim_cycle+gpu_tot_sim_cycle-mf->get_m_warp_cta_begin_time();
+                L2_to_dram_count++;
+                L2_to_dram_exe_time+=exe_time;
+                 if(gpu_sim_cycle+gpu_tot_sim_cycle%1000==0)
+                L2_to_dram_exe_mean=(L2_to_dram_exe_time/L2_to_dram_count);
+            }
+            bool pass_L2PCQ=((mf->get_m_warp_cta_begin_time()!=0)&& (exe_time>alpha_set*L2_to_dram_exe_mean)) ||mf->mf_div<=3;//
+            if(mf_from_icnt_L2_fsqueue && use_L2toDRAM_fs_queue){   //確定request是從fast queue出來的
+               m_L2_dram_queue_cta_fs->push(mf);
+               m_icnt_L2_queue_cta_fs->pop();
+            }
+            else if(use_L2toDRAM_fs_queue && pass_L2PCQ){
+               m_L2_dram_queue_cta_fs->push(mf);
+               m_icnt_L2_queue->pop();
+            }
+            else{
+               m_L2_dram_queue->push(mf);
+               m_icnt_L2_queue->pop();
+            }
         }
     }
 
@@ -534,19 +578,30 @@ bool memory_sub_partition::full() const
         return m_icnt_L2_queue->full();
 }
 
-bool memory_sub_partition::L2_dram_queue_empty() const
+bool memory_sub_partition::L2_dram_queue_empty(int *L2_dram_queue_not_empty_flag) const
 {
-   return m_L2_dram_queue->empty(); 
+   if(!m_L2_dram_queue_cta_fs->empty())
+      *L2_dram_queue_not_empty_flag = 2;
+   else  if(!m_L2_dram_queue->empty())
+            *L2_dram_queue_not_empty_flag = 1;
+         else
+            *L2_dram_queue_not_empty_flag = 0; 
 }
 
-class mem_fetch* memory_sub_partition::L2_dram_queue_top() const
+class mem_fetch* memory_sub_partition::L2_dram_queue_top(int L2_dram_queue_not_empty_flag) const
 {
-   return m_L2_dram_queue->top(); 
+   if(L2_dram_queue_not_empty_flag == 2)
+        return m_L2_dram_queue_cta_fs->top(); 
+    else
+        return m_L2_dram_queue->top(); 
 }
 
-void memory_sub_partition::L2_dram_queue_pop() 
+void memory_sub_partition::L2_dram_queue_pop(int L2_dram_queue_not_empty_flag) 
 {
-   m_L2_dram_queue->pop(); 
+   if(L2_dram_queue_not_empty_flag == 2)
+      m_L2_dram_queue_cta_fs->pop(); 
+   else
+      m_L2_dram_queue->pop(); 
 }
 
 bool memory_sub_partition::dram_L2_queue_full() const
@@ -556,7 +611,19 @@ bool memory_sub_partition::dram_L2_queue_full() const
 
 void memory_sub_partition::dram_L2_queue_push( class mem_fetch* mf )
 {
-   m_dram_L2_queue->push(mf); 
+    int exe_time=0;
+            if(mf->get_m_warp_cta_begin_time()!=0){
+                exe_time=gpu_sim_cycle+gpu_tot_sim_cycle-mf->get_m_warp_cta_begin_time();
+                dram_to_L2_count++;
+                dram_to_L2_exe_time+=exe_time;
+                 if(gpu_sim_cycle+gpu_tot_sim_cycle%1000==0)
+                dram_to_L2_exe_mean=(dram_to_L2_exe_time/dram_to_L2_count);
+            }
+    bool pass_L2PCQ=((mf->get_m_warp_cta_begin_time()!=0)&& (exe_time>alpha_set*dram_to_L2_exe_mean)) ||mf->mf_div<=3;//
+   if(use_DRAMtoL2_fs_queue && pass_L2PCQ)
+      m_dram_L2_queue_cta_fs->push(mf);
+   else
+      m_dram_L2_queue->push(mf);  
 }
 
 void memory_sub_partition::print_cache_stat(unsigned &accesses, unsigned &misses) const

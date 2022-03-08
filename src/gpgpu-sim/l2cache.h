@@ -162,9 +162,9 @@ public:
    unsigned flushL2();
 
    // interface to L2_dram_queue
-   bool L2_dram_queue_empty() const; 
-   class mem_fetch* L2_dram_queue_top() const; 
-   void L2_dram_queue_pop(); 
+   bool L2_dram_queue_empty(int *empty_flag) const; 
+   class mem_fetch* L2_dram_queue_top(int empty_flag) const; 
+   void L2_dram_queue_pop(int empty_flag); 
 
    // interface to dram_L2_queue
    bool dram_L2_queue_full() const; 
@@ -191,6 +191,8 @@ public:
    //bosheng:L2PCQ 220213 
    fifo_pipeline<mem_fetch> *m_icnt_L2_queue_cta_fs;
    fifo_pipeline<mem_fetch> *m_L2_icnt_queue_cta_fs;
+   fifo_pipeline<mem_fetch> *m_L2_dram_queue_cta_fs;
+   fifo_pipeline<mem_fetch> *m_dram_L2_queue_cta_fs;
    int L2_to_icnt_count=0;
    int L2_to_icnt_exe_time=0;
    int L2_to_icnt_exe_mean=0;
@@ -199,6 +201,17 @@ public:
    int icnt_to_L2_exe_time=0;
    int icnt_to_L2_exe_mean=0;
    int icnt_to_L2_pop=0;
+
+   int dram_to_L2_count=0;
+   int dram_to_L2_exe_time=0;
+   int dram_to_L2_exe_mean=0;
+   int dram_to_L2_pop=0;
+
+   int L2_to_dram_count=0;
+   int L2_to_dram_exe_time=0;
+   int L2_to_dram_exe_mean=0;
+   int L2_to_dram_pop=0;
+   
 private:
 // data
    unsigned m_id;  //< the global sub partition ID
@@ -245,8 +258,13 @@ public:
     }
     virtual void push(mem_fetch *mf) 
     {
+        int use_L2toDRAM_fs_queue = 0 ;
         mf->set_status(IN_PARTITION_L2_TO_DRAM_QUEUE,0/*FIXME*/);
-        m_unit->m_L2_dram_queue->push(mf);
+        if (use_L2toDRAM_fs_queue)
+           m_unit->m_L2_dram_queue_cta_fs->push(mf);
+         else
+           m_unit->m_L2_dram_queue->push(mf);
+        
     }
 private:
     memory_sub_partition *m_unit;
