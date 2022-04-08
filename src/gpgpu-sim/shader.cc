@@ -51,8 +51,8 @@
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #define MIN(a,b) (((a)<(b))?(a):(b))
 bool ATM_method = 1; 
-bool TISD_swith= 0;
-int num_bypass= 1;
+bool TISD_swith= 1;
+int num_bypass=2;
 unsigned warp_div_count[33]={0};
 /////////////////////////////////////////////////////////////////////////////
 
@@ -2643,15 +2643,17 @@ unsigned int shader_core_config::max_cta( const kernel_info_t &k ) const
                 else if(trend<0) trend=-1;
                 ipc_shift=ipc_curr/ipc_prev;
                 missrate_shift=missrate_curr-missrate_prev;
-                if(ipc_shift>1.0 &&missrate_shift<0.01)
+                if(ipc_shift>1.1 &&missrate_shift<(0.1))
                 {   
                     if(tlp_curr+trend<=max_cta_per_core&&tlp_curr+trend>=4)
                         tlp_next=tlp_curr+trend;
+                        //  printf("%d\t",tlp_next);
                 }
-                else if(ipc_shift<1.0 && missrate_shift>0.01)
+                else if(ipc_shift<1.0 && missrate_shift>(0.1))
                 {
                         if(tlp_curr-trend<=max_cta_per_core&&tlp_curr-trend>=4)
                             tlp_next=tlp_curr-trend;
+                            // printf("%d\t",tlp_next);
                 }
                 else if(tlp_curr-tlp_prev<2&&tlp_curr-tlp_prev>-2){
                         tlp_next=tlp_curr;
@@ -2681,7 +2683,7 @@ unsigned int shader_core_config::max_cta( const kernel_info_t &k ) const
    result = gs_min2(result, result_regs);
    result = gs_min2(result, result_cta);
    tlp_curr=result;
-
+    
    static const struct gpgpu_ptx_sim_kernel_info* last_kinfo = NULL;
    if (last_kinfo != kernel_info) {   //Only print out stats if kernel_info struct changes
       last_kinfo = kernel_info;
