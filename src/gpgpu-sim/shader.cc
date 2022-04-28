@@ -50,12 +50,60 @@
 #define PRIORITIZE_MSHR_OVER_WB 1
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #define MIN(a,b) (((a)<(b))?(a):(b))
-bool ATM_method = 1; 
-bool TISD_swith= 1;
+bool ATM_method = 0; 
+bool TISD_swith= 0;
 int num_bypass=2;
 unsigned warp_div_count[33]={0};
-/////////////////////////////////////////////////////////////////////////////
 
+/////////////////////////////////////////////////////////////////////////////
+//MRF method
+//bosheng: MRF include
+#include<iostream> 
+#include<bitset>
+
+#include <algorithm>
+typedef struct TFT{
+	bool valid=0;
+	std::bitset<12> mft;
+	bool operator == (const TFT &e){
+        return (this->valid == e.valid) && (this->mft == e.mft);
+    }
+    //查找數值pos是否與posx相等
+    bool operator == (const int &mf_t){
+        return (this->mft == mf_t);
+		}
+}TFT;
+
+class MRF{
+	public:
+		bool search_table(bool valid,new_addr_type addr){
+			TFT node;
+			node.valid=valid;
+			node.mft=addr;
+			iter=std::find(MF_table.begin(),MF_table.end(),node);
+			if( iter != MF_table.end() )
+				return true;
+			else return false;
+		};
+		void add(bool valid,new_addr_type addr){// 記得long改new_addr_type 
+			TFT node;
+			node.valid=valid;
+			node.mft=addr;
+			MF_table.push_front(node);
+		}
+		void print(){
+			for(iter = MF_table.begin(); iter != MF_table.end(); iter++)
+				std::cout <<(*iter).valid<< ","<< (*iter).mft<< std::endl;
+		};
+		void clear(){
+            MF_table.clear();
+        };
+	private:
+		std::list<TFT> MF_table;	
+		std::list<TFT>::iterator iter;	
+};
+MRF mrf[16];
+////////////////////////////////////////////////////////////////////////////
 std::list<unsigned> shader_core_ctx::get_regs_written( const inst_t &fvt ) const
 {
    std::list<unsigned> result;
@@ -267,10 +315,7 @@ shader_core_ctx::shader_core_ctx( class gpgpu_sim *gpu,
     // execute(to add ldst unit must change +1 -> +2) bosheng:0912 ldst unit add
     m_num_function_units = m_config->gpgpu_num_sp_units + m_config->gpgpu_num_sfu_units + 1; // sp_unit, sfu, ldst_unit
     // m_num_function_units = m_config->gpgpu_num_sp_units + m_config->gpgpu_num_sfu_units + 2; //two ldst unit open
-    //m_dispatch_port = new enum pipeline_stage_name_t[ m_num_function_units ];
-    //m_issue_port = new enum pipeline_stage_name_t[ m_num_function_units ];
     
-    //m_fu = new simd_function_unit*[m_num_function_units];
     
     for (int k = 0; k < m_config->gpgpu_num_sp_units; k++) {
         m_fu.push_back(new sp_unit( &m_pipeline_reg[EX_WB], m_config, this ));
@@ -289,9 +334,6 @@ shader_core_ctx::shader_core_ctx( class gpgpu_sim *gpu,
     m_dispatch_port.push_back(ID_OC_MEM);
     m_issue_port.push_back(OC_EX_MEM);
 
-    // m_fu.push_back(m_ldst_unit);// two ldst unit open
-    // m_dispatch_port.push_back(ID_OC_MEM);
-    // m_issue_port.push_back(OC_EX_MEM);
     
     assert(m_num_function_units == m_fu.size() and m_fu.size() == m_dispatch_port.size() and m_fu.size() == m_issue_port.size());
     
@@ -1537,6 +1579,7 @@ bool ldst_unit::texture_cycle( warp_inst_t &inst, mem_stage_stall_type &rc_fail,
 
 bool ldst_unit::memory_cycle( warp_inst_t &inst, mem_stage_stall_type &stall_reason, mem_stage_access_type &access_type )
 {
+
    if( inst.empty() || 
        ((inst.space.get_type() != global_space) &&
         (inst.space.get_type() != local_space) &&
@@ -1547,15 +1590,23 @@ bool ldst_unit::memory_cycle( warp_inst_t &inst, mem_stage_stall_type &stall_rea
    assert( !inst.accessq_empty() );
    mem_stage_stall_type stall_cond = NO_RC_FAIL;
    const mem_access_t &access = inst.accessq_back();
-   
+   int time_window= (gpu_sim_cycle+gpu_tot_sim_cycle)%20000;
     //bosheng:220109 Method switch
     if(TISD_swith)
         if(num_bypass>0 && inst.warp_div>num_bypass) //bosheng:1126 bypass diverse N
         {
             inst.cache_op=CACHE_GLOBAL;
         }
+    if(time_window==0)
+    {
+        mrf[m_sid].clear();
+    }
+    if(time_window>5000){
+        if(mrf[m_sid].search_table(1,access.get_addr())!=0 && inst.warp_div>2)
+            inst.cache_op=CACHE_GLOBAL;
+    }
     
-
+        
    bool bypassL1D = false; 
    if ( CACHE_GLOBAL == inst.cache_op || (m_L1D == NULL) ) {
        bypassL1D = true; 
@@ -1846,6 +1897,7 @@ void ldst_unit:: issue( register_set &reg_set )
 
 void ldst_unit::writeback()
 {
+    
     // process next instruction that is going to writeback
     if( !m_next_wb.empty() ) {
         if( m_operand_collector->writeback(m_next_wb) ) {
@@ -1920,6 +1972,10 @@ void ldst_unit::writeback()
         case 4: 
             if( m_L1D && m_L1D->access_ready() ) {
                 mem_fetch *mf = m_L1D->next_access();
+                
+                if(mrf[m_sid].search_table(1,mf->get_addr())==false)
+                    mrf[m_sid].add(1,mf->get_addr());
+                
                 m_next_wb = mf->get_inst();
                 delete mf;
                 serviced_client = next_client; 

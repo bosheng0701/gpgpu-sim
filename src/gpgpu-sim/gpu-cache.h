@@ -38,6 +38,7 @@
 #include "addrdec.h"
 
 
+
 enum cache_block_state {
     INVALID,
     RESERVED,
@@ -544,6 +545,7 @@ private:
     unsigned long long m_cache_data_port_busy_cycles; 
     unsigned long long m_cache_fill_port_busy_cycles; 
 };
+
 
 class cache_t {
 public:
