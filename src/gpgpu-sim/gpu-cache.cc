@@ -538,6 +538,7 @@ mem_fetch *mshr_table::next_access(){
         m_data.erase(block_addr);
         m_current_response.pop_front();
     }
+
     return result;
 }
 
@@ -842,7 +843,6 @@ void baseline_cache::fill(mem_fetch *mf, unsigned time){
     assert( e != m_extra_mf_fields.end() );
     assert( e->second.m_valid );
     mf->set_data_size( e->second.m_data_size );
-    //printf("%d,%d-bobo\n",e->first->get_data_size(),e->second.m_data_size);//bosheng:0915 data_size
     if ( m_config.m_alloc_policy == ON_MISS )
         m_tag_array->fill(e->second.m_cache_index,time);
     else if ( m_config.m_alloc_policy == ON_FILL )
@@ -882,6 +882,7 @@ void baseline_cache::send_read_request(new_addr_type addr, new_addr_type block_a
 
 	bool wb=false;
 	cache_block_t e;
+    
 	send_read_request(addr, block_addr, cache_index, mf, time, do_miss, wb, e, events, read_only, wa);
 }
 
@@ -896,7 +897,6 @@ void baseline_cache::send_read_request(new_addr_type addr, new_addr_type block_a
     		m_tag_array->access(block_addr,time,cache_index,mf);
     	else
     		m_tag_array->access(block_addr,time,cache_index,wb,evicted,mf);
-
         m_mshrs.add(block_addr,mf);
         do_miss = true;
     } else if ( !mshr_hit && mshr_avail && (m_miss_queue.size() < m_config.m_miss_queue_size) ) {
@@ -904,27 +904,29 @@ void baseline_cache::send_read_request(new_addr_type addr, new_addr_type block_a
     		m_tag_array->access(block_addr,time,cache_index,mf);
     	else
     		m_tag_array->access(block_addr,time,cache_index,wb,evicted,mf);
-
         m_mshrs.add(block_addr,mf);
         m_extra_mf_fields[mf] = extra_mf_fields(block_addr,cache_index, mf->get_data_size());
         mf->set_data_size( m_config.get_line_sz() );
+        
         m_miss_queue.push_back(mf);
         mf->set_status(m_miss_queue_status,time);
+        
         if(!wa)
         	events.push_back(READ_REQUEST_SENT);
         do_miss = true;
     }
+    // if(mf->get_inst().cache_op!=CACHE_GLOBAL||mf->cache_num!=1) //bypass read not write 
 }
 
 
 /// Sends write request to lower level memory (write or writeback)
 void data_cache::send_write_request(mem_fetch *mf, cache_event request, unsigned time, std::list<cache_event> &events){
-    events.push_back(request);
+   if(mf->get_inst().cache_op!=CACHE_GLOBAL||mf->cache_num!=1){
+   events.push_back(request);
     m_miss_queue.push_back(mf);
     mf->set_status(m_miss_queue_status,time);
+   }
 }
-
-
 /****** Write-hit functions (Set by config file) ******/
 
 /// Write-back hit: Mark block as modified
@@ -1034,8 +1036,7 @@ data_cache::wr_miss_wa( new_addr_type addr,
             mem_fetch *wb = m_memfetch_creator->alloc(evicted.m_block_addr,
                 m_wrbk_type,m_config.get_line_sz(),true);
             m_miss_queue.push_back(wb);
-            wb->set_status(m_miss_queue_status,time);
-        }
+            wb->set_status(m_miss_queue_status,time);}
         return MISS;
     }
 

@@ -830,6 +830,7 @@ public:
     int begin_time=0;
     int temp_warp_cta_id;
     int cta_begin_time;
+    bool not_in_cache;
     void broadcast_barrier_reduction( const active_mask_t& access_mask);
     void do_atomic(bool forceDo=false);
     void do_atomic( const active_mask_t& access_mask, bool forceDo=false );
@@ -1123,7 +1124,7 @@ public:
 		}
 		return ready;
 	}
-
+    
 	void print(FILE* fp) const{
 		fprintf(fp, "%s : @%p\n", m_name, this);
 		for( unsigned i = 0; i < regs.size(); i++ ) {

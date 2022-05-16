@@ -93,7 +93,6 @@ public:
    bool isconst() const;
    enum mf_type get_type() const { return m_type; }
    bool isatomic() const;
-
    void set_return_timestamp( unsigned t ) { m_timestamp2=t; }
    void set_icnt_receive_time( unsigned t ) { m_icnt_receive_time=t; }
    unsigned get_timestamp() const { return m_timestamp; }

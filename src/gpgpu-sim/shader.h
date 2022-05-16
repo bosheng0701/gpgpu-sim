@@ -968,13 +968,13 @@ public:
     ~simd_function_unit() { delete m_dispatch_reg; }
 
     // modifiers
-    virtual void issue( register_set& source_reg ) { source_reg.move_out_to(m_dispatch_reg); occupied.set(m_dispatch_reg->latency);}
+    virtual void issue( register_set& source_reg ) { source_reg.move_out_to(m_dispatch_reg); occupied.set(m_dispatch_reg->latency); }
     virtual void cycle() = 0;
     virtual void active_lanes_in_pipeline() = 0;
 
     // accessors
     virtual unsigned clock_multiplier() const { return 1; }
-    virtual bool can_issue( const warp_inst_t &inst ) const { return m_dispatch_reg->empty() && !occupied.test(inst.latency); }
+    virtual bool can_issue( const warp_inst_t &inst ) const {  return m_dispatch_reg->empty() && !occupied.test(inst.latency);  }
     virtual bool stallable() const = 0;
     virtual void print( FILE *fp ) const
     {
@@ -1168,7 +1168,8 @@ protected:
    class shader_core_ctx *m_core;
    unsigned m_sid;
    unsigned m_tpc;
-
+   std::list<warp_inst_t*> access_queue;
+   std::list<warp_inst_t*>::iterator acc_iter;
    tex_cache *m_L1T; // texture cache
    read_only_cache *m_L1C; // constant cache
    l1_cache *m_L1D; // data cache
@@ -1786,7 +1787,6 @@ public:
     friend class LooseRoundRobbinScheduler;
     void issue_warp( register_set& warp, const warp_inst_t *pI, const active_mask_t &active_mask, unsigned warp_id );
     void func_exec_inst( warp_inst_t &inst );
-
      // Returns numbers of addresses in translated_addrs
     unsigned translate_local_memaddr( address_type localaddr, unsigned tid, unsigned num_shader, unsigned datasize, new_addr_type* translated_addrs );
 
@@ -1847,6 +1847,8 @@ public:
     unsigned atm_prev_miss=0;
     unsigned atm_prev_access=0;
     cache_sub_stats total_css;
+    //MRF method
+
     // CTA scheduling / hardware thread allocation
     unsigned m_n_active_cta; // number of Cooperative Thread Arrays (blocks) currently running on this shader.
     unsigned m_cta_status[MAX_CTA_PER_SHADER]; // CTAs status 

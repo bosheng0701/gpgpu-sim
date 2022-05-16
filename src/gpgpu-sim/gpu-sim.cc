@@ -317,7 +317,7 @@ void shader_core_config::reg_options(class OptionParser * opp)
                            "1");
     option_parser_register(opp, "-gpgpu_operand_collector_num_in_ports_mem", OPT_INT32, &gpgpu_operand_collector_num_in_ports_mem,
                            "number of collector unit in ports (default = 1)", 
-                           "1");
+                           "2");
     option_parser_register(opp, "-gpgpu_operand_collector_num_in_ports_gen", OPT_INT32, &gpgpu_operand_collector_num_in_ports_gen,
                            "number of collector unit in ports (default = 0)", 
                            "0");
@@ -329,7 +329,7 @@ void shader_core_config::reg_options(class OptionParser * opp)
                            "1");
     option_parser_register(opp, "-gpgpu_operand_collector_num_out_ports_mem", OPT_INT32, &gpgpu_operand_collector_num_out_ports_mem,
                            "number of collector unit in ports (default = 1)", 
-                           "1");
+                           "2");
     option_parser_register(opp, "-gpgpu_operand_collector_num_out_ports_gen", OPT_INT32, &gpgpu_operand_collector_num_out_ports_gen,
                            "number of collector unit in ports (default = 0)", 
                            "0");
