@@ -1270,13 +1270,13 @@ struct shader_core_config : public core_config
 //bosheng:0110 ATM data
     mutable int atmflag=0;
     mutable float ipc_prev=-1;
-    mutable float ipc_curr=-1;
+    
     mutable float ipc_shift;
     mutable int tlp_prev=8;
     mutable int tlp_curr=8;
     mutable int tlp_next=4;
     mutable int trend;
-    mutable float missrate_curr=-1;
+    
     mutable float missrate_prev=-1;
     mutable float missrate_shift;
     mutable int atm_flag=0;

@@ -246,37 +246,37 @@ enum cache_request_status tag_array::probeL1( new_addr_type addr, unsigned &idx 
             //chao:寫檔mf_div命中在block_div
                 if(mf->mf_div == 1){
                     div1_hit_div[line->block_div]+=1;
-                    FILE *pFile1;
-                    pFile1 = fopen("./div1_hit_div.csv","w");
-                    for(int i=1;i<33;i++){
-                        fprintf(pFile1,"%i.%d, ",i,div1_hit_div[i]);
-                    }
-                    fclose(pFile1);
+                    // // FILE *pFile1;
+                    // // pFile1 = fopen("./div1_hit_div.csv","w");
+                    // for(int i=1;i<33;i++){
+                    //     // fprintf(pFile1,"%i.%d, ",i,div1_hit_div[i]);
+                    // }
+                    // fclose(pFile1);
                 }
                 if(mf->mf_div == 2){
                     div2_hit_div[line->block_div]++;
-                    FILE *pFile2;
-                    pFile2 = fopen("./div2_hit_div.csv","w");
-                    for(int i=1;i<33;i++){
-                        fprintf(pFile2,"%i.%d, ",i,div2_hit_div[i]);
-                    }
-                    fclose(pFile2);
+                    // FILE *pFile2;
+                    // pFile2 = fopen("./div2_hit_div.csv","w");
+                    // for(int i=1;i<33;i++){
+                    //     // fprintf(pFile2,"%i.%d, ",i,div2_hit_div[i]);
+                    // }
+                    // fclose(pFile2);
                 }
                 if(mf->mf_div == 3){
                     div3_hit_div[line->block_div]++;
-                    FILE *pFile4;
-                    pFile4 = fopen("./div3_hit_div.csv","w");
-                    for(int i=1;i<33;i++){
-                        fprintf(pFile4,"%i.%d, ",i,div3_hit_div[i]);
-                    }
-                    fclose(pFile4);
+                    // FILE *pFile4;
+                    // pFile4 = fopen("./div3_hit_div.csv","w");
+                    // for(int i=1;i<33;i++){
+                    //     fprintf(pFile4,"%i.%d, ",i,div3_hit_div[i]);
+                    // }
+                    // fclose(pFile4);
                 }
             //chao:寫檔，看命中在哪個PC上
                 if(mf->mf_div==1){
-                    FILE *pFile5;
-                    pFile5 = fopen("./pc_hit_pc.csv","a");
-                    fprintf(pFile5,"%x,%x\n",mf->get_pc(),line->block_pc);
-                    fclose(pFile5);
+                    // FILE *pFile5;
+                    // pFile5 = fopen("./pc_hit_pc.csv","a");
+                    // fprintf(pFile5,"%x,%x\n",mf->get_pc(),line->block_pc);
+                    // fclose(pFile5);
                 }
 
                 return HIT;
@@ -286,37 +286,37 @@ enum cache_request_status tag_array::probeL1( new_addr_type addr, unsigned &idx 
                  //chao:寫檔mf_div命中在block_div
                 if(mf->mf_div == 1){
                     div1_hit_div[line->block_div]++;
-                    FILE *pFile1;
-                    pFile1 = fopen("./div1_hit_div.csv","w");
-                    for(int i=1;i<33;i++){
-                        fprintf(pFile1,"%i.%d, ",i,div2_hit_div[i]);
-                    }
-                    fclose(pFile1);
+                    // FILE *pFile1;
+                    // pFile1 = fopen("./div1_hit_div.csv","w");
+                    // for(int i=1;i<33;i++){
+                    //     fprintf(pFile1,"%i.%d, ",i,div2_hit_div[i]);
+                    // }
+                    // fclose(pFile1);
                 }
                 if(mf->mf_div == 2){
                     div2_hit_div[line->block_div]++;
-                    FILE *pFile2;
-                    pFile2 = fopen("./div2_hit_div.csv","w");
-                    for(int i=1;i<33;i++){
-                        fprintf(pFile2,"%i.%d, ",i,div2_hit_div[i]);
-                    }
-                    fclose(pFile2);
+                    // FILE *pFile2;
+                    // pFile2 = fopen("./div2_hit_div.csv","w");
+                    // for(int i=1;i<33;i++){
+                    //     fprintf(pFile2,"%i.%d, ",i,div2_hit_div[i]);
+                    // }
+                    // fclose(pFile2);
                 }
                 if(mf->mf_div == 3){
                     div3_hit_div[line->block_div]++;
-                    FILE *pFile4;
-                    pFile4 = fopen("./div3_hit_div.csv","w");
-                    for(int i=1;i<33;i++){
-                        fprintf(pFile4,"%i.%d, ",i,div3_hit_div[i]);
-                    }
-                    fclose(pFile4);
+                    // FILE *pFile4;
+                    // pFile4 = fopen("./div3_hit_div.csv","w");
+                    // for(int i=1;i<33;i++){
+                    //     fprintf(pFile4,"%i.%d, ",i,div3_hit_div[i]);
+                    // }
+                    // fclose(pFile4);
                 }
                 //chao:寫檔，看命中在哪個PC上
                 if(mf->mf_div ==1 ){
-                    FILE *pFile5;
-                    pFile5 = fopen("./pc_hit_pc.csv","a");
-                    fprintf(pFile5,"%x,%x\n",mf->get_pc(),line->block_pc);
-                    fclose(pFile5);
+                    // FILE *pFile5;
+                    // pFile5 = fopen("./pc_hit_pc.csv","a");
+                    // fprintf(pFile5,"%x,%x\n",mf->get_pc(),line->block_pc);
+                    // fclose(pFile5);
                 }
                 return HIT;
             } else {

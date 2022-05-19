@@ -50,11 +50,14 @@
 #define PRIORITIZE_MSHR_OVER_WB 1
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #define MIN(a,b) (((a)<(b))?(a):(b))
-bool ATM_method = 0; 
+bool ATM_method = 0;
 bool TISD_swith= 0;
 int num_bypass=2;
 unsigned warp_div_count[33]={0};
-
+/////////////////////////////////////////////////////////////////////////////
+//ATM method 
+float ipc_curr=-1;
+float missrate_curr=-1;
 /////////////////////////////////////////////////////////////////////////////
 //MRF method
 //bosheng: MRF include
@@ -75,6 +78,22 @@ typedef struct TFT{
 		}
 }TFT;
 
+typedef struct PCT{
+	unsigned PC;
+    int count=0;
+	bool operator == (const PCT &e){
+        return (this->PC == e.PC) && (this->count == e.count);
+    }
+    //查找數值pos是否與posx相等
+    bool operator == (const unsigned &pc){
+        return (this->PC == pc);
+		}       
+    bool operator<( const PCT& a){
+        return count > a.count;
+    } 
+}PCT;
+
+
 class MRF{
 	public:
 		bool search_table(bool valid,new_addr_type addr){
@@ -87,10 +106,9 @@ class MRF{
 			else return false;
 		};
         bool search_pc(unsigned inst_pc){
-			TFT node;
-			node.pc=inst_pc;
-			iter=find(MF_table.begin(),MF_table.end(),node.pc);
-			if( iter != MF_table.end() )
+			iter1=find(pc_table.begin(),pc_table.end(),inst_pc);
+            
+			if( iter1 != pc_table.end() )//&& std::distance(pc_table.begin(),iter1)<5
 				return true;
 			else return false;
 		};
@@ -98,35 +116,38 @@ class MRF{
 			TFT node;
 			node.valid=valid;
 			node.mft=addr;
-			node.pc=inst_pc;
 			MF_table.push_front(node);
+		}
+        void add_pc(unsigned inst_pc){// 記得long改new_addr_type 
+			iter1=find(pc_table.begin(),pc_table.end(),inst_pc);
+			if( iter1 != pc_table.end() )
+				(*iter1).count++;
+			else if( iter1 == pc_table.end() ){
+                PCT node;
+                node.PC=inst_pc;
+                node.count=1;
+                pc_table.push_front(node);
+            }
+            pc_table.sort();
 		}
 		void print(){
 			for(iter = MF_table.begin(); iter != MF_table.end(); iter++)
-				std::cout <<(*iter).valid<< ","<< (*iter).mft<<","<<(*iter).pc<<std::endl;
+				std::cout <<(*iter).valid<< ","<< (*iter).mft<<std::endl;
+		};
+        void print_pc(){
+			for(iter1 = pc_table.begin(); iter1 != pc_table.end(); iter1++)
+				std::cout <<(*iter1).PC<< ","<< (*iter1).count<<","<< pc_table.size()<<std::endl;
 		};
 		void clear(){
             MF_table.clear();
-            uid.clear();
+            pc_table.clear();
         }
-        void pop(){
-            if(MF_table.empty()==false)
-            MF_table.pop_back();
-        }
-        void add_uid(unsigned inst_uid){
-            uid.push_front(inst_uid);
-        }
-        bool search_uid(unsigned inst_uid){
-            iter1=std::find(uid.begin(),uid.end(),inst_uid);
-			if( iter1 != uid.end() )
-				return true;
-			else return false;
-        }
+        
 	private:
 		std::list<TFT> MF_table;	
 		std::list<TFT>::iterator iter;	
-        std::list<unsigned> uid;
-        std::list<unsigned>::iterator iter1;	
+        std::list<PCT> pc_table;
+        std::list<PCT>::iterator iter1;	
 };
 MRF mrf[16];
 int mrf_flag=0;
@@ -788,20 +809,14 @@ bool atm_cache_flag=false;
 void shader_core_ctx::issue(){
     //really is issue;
     if((gpu_sim_cycle+gpu_tot_sim_cycle)%5000==0){
-        FILE *ipc_temp=fopen("temp_ipc.txt","w");
         atm_curr_inst=(get_gpu()->gpu_sim_insn+get_gpu()->gpu_tot_sim_insn-atm_prev_inst);
-        fprintf(ipc_temp, "%.2f", (float)(atm_curr_inst/1000.00));
-        fclose(ipc_temp);
+        ipc_curr=(float)(atm_curr_inst/5000.00);
         atm_prev_inst=get_gpu()->gpu_sim_insn+get_gpu()->gpu_tot_sim_insn;
         total_css.clear();
         atm_cache_flag=true;
         m_cluster->get_L1D_sub_stats(total_css);
         if(total_css.accesses!=0){
-            FILE *missrate_write=fopen("temp_missrate.txt","w");
-            fprintf(missrate_write, "%.4lf", (double)(total_css.misses) / (double)(total_css.accesses));
-            fclose(missrate_write);
-            // atm_prev_miss= (total_css.misses);
-            // atm_prev_access=(total_css.accesses);
+            missrate_curr=(double)(total_css.misses) / (double)(total_css.accesses);
         } 
     }
         
@@ -951,8 +966,7 @@ void scheduler_unit::cycle()
         }
         SCHED_DPRINTF( "Testing (warp_id %u, dynamic_warp_id %u)\n",
                        (*iter)->get_warp_id(), (*iter)->get_dynamic_warp_id() );
-        unsigned warp_id = (*iter)->get_warp_id();
-
+        unsigned warp_id = (*iter)->get_warp_id(); 
         unsigned checked=0;
         unsigned issued=0;
         unsigned max_issue = m_shader->m_config->gpgpu_max_insn_issue_per_warp;         
@@ -994,12 +1008,10 @@ void scheduler_unit::cycle()
                         const active_mask_t &active_mask = m_simt_stack[warp_id]->get_active_mask();
                         assert( warp(warp_id).inst_in_pipeline() );
                         if ( (pI->op == LOAD_OP) || (pI->op == STORE_OP) || (pI->op == MEMORY_BARRIER_OP) ) {
-                        
+                            int time_window= (gpu_sim_cycle+gpu_tot_sim_cycle)%20000;
+                            if(mrf[m_shader->m_sid].search_pc(pI->pc)==0&&skip_count[m_shader->m_sid]==1&&time_window>5000&&last_warp_id!=warp_id) {skip_count[m_shader->m_sid]=1;last_warp_id=warp_id;break;}
+                            else { skip_count[m_shader->m_sid]=0; last_warp_id=warp_id;}
                             if( m_mem_out->has_free()) {
-                                int time_window= (gpu_sim_cycle+gpu_tot_sim_cycle)%20000;
-                                if(mrf[m_shader->m_sid].search_pc(pI->pc)==1&&m_shader->m_sid==1) printf("momo@@@\n");
-                                if(mrf[m_shader->m_sid].search_pc(pI->pc)==0&&skip_count[m_shader->m_sid]!=1&&time_window>5000) {skip_count[m_shader->m_sid]=1;break;}
-                                else skip_count[m_shader->m_sid]=0;
                                 m_shader->issue_warp(*m_mem_out,pI,active_mask,warp_id);
                                 issued++;
                                 issued_inst=true;
@@ -1010,6 +1022,7 @@ void scheduler_unit::cycle()
                                     m_shader->pipeline_flag=0;
                                 }
                             }
+                            
                         } else {
                             bool sp_pipe_avail = m_sp_out->has_free();
                             bool sfu_pipe_avail = m_sfu_out->has_free();
@@ -1604,6 +1617,9 @@ bool ldst_unit::memory_cycle( warp_inst_t &inst, mem_stage_stall_type &stall_rea
     }
     // if(mrf[m_sid].search_table(1,access.get_addr())==0&&time_window>5000){
     //     inst.cache_op=CACHE_GLOBAL;
+    // // }
+    // if(mrf[m_sid].search_pc(inst.pc)==1&&time_window>5000){
+    //     inst.cache_op=CACHE_GLOBAL;
     // }
    bool bypassL1D = false; 
    if ( CACHE_GLOBAL == inst.cache_op || (m_L1D == NULL) ) {
@@ -1972,9 +1988,11 @@ void ldst_unit::writeback()
             if( m_L1D && m_L1D->access_ready() ) {
                 mem_fetch *mf = m_L1D->next_access();
                 
-                if(mrf[m_sid].search_table(1,mf->get_addr())==false)
-                    mrf[m_sid].add(1,mf->get_addr(),mf->get_pc());
-                
+                if(mrf[m_sid].search_table(1,mf->get_addr())==false){
+                    mrf[m_sid].add(1,mf->get_addr(),mf->get_pc());          
+                }
+                mrf[m_sid].add_pc(mf->get_pc());
+
                 m_next_wb = mf->get_inst();
                 delete mf;
                 serviced_client = next_client; 
@@ -2159,14 +2177,14 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num )
           total_retire_time=total_retire_time+retire_time;
           cta_flag[cta_num]=0;
           cta_count++;
-          FILE *cta_re;
-          cta_re = fopen("./cta_retire.txt","a");
-          fprintf(cta_re," %d , %d , %d , %d , %ld\n",m_sid,retire_begin,retire_end, retire_time, total_retire_time);
-          fclose(cta_re);
-          FILE *cta_ct;
-          cta_ct = fopen("./total_cta.txt","a");//bosheng:0810 calculate the each SM cta number
-          fprintf(cta_ct,"%d,%d\n",m_sid,cta_count);
-          fclose(cta_ct);
+        //   FILE *cta_re;
+        //   cta_re = fopen("./cta_retire.txt","a");
+        //   fprintf(cta_re," %d , %d , %d , %d , %ld\n",m_sid,retire_begin,retire_end, retire_time, total_retire_time);
+        //   fclose(cta_re);
+        //   FILE *cta_ct;
+        //   cta_ct = fopen("./total_cta.txt","a");//bosheng:0810 calculate the each SM cta number
+        //   fprintf(cta_ct,"%d,%d\n",m_sid,cta_count);
+        //   fclose(cta_ct);
       }
       
       //printf("GPGPU-Sim uArch: Shader %d finished CTA #%d (%lld,%lld), %u CTAs running\n", m_sid, cta_num, gpu_sim_cycle, gpu_tot_sim_cycle,
@@ -2307,11 +2325,6 @@ void gpgpu_sim::shader_print_cache_stats( FILE *fout ) const{
         fprintf(fout, "\tL1D_total_cache_misses = %u\n", total_css.misses);
         if(total_css.accesses > 0){
             fprintf(fout, "\tL1D_total_cache_miss_rate = %.4lf\n", (double)total_css.misses / (double)total_css.accesses);
-            
-            // FILE *missrate_write=fopen("temp_missrate.txt","w");
-            // fprintf(missrate_write, "%.4lf", (double)total_css.misses / (double)total_css.accesses);
-            // fclose(missrate_write);
-            
         }
         fprintf(fout, "\tL1D_total_cache_pending_hits = %u\n", total_css.pending_hits);
         fprintf(fout, "\tL1D_total_cache_reservation_fails = %u\n", total_css.res_fails);
@@ -2687,17 +2700,6 @@ unsigned int shader_core_config::max_cta( const kernel_info_t &k ) const
    //bosheng:220110 ATM method
    if((gpu_sim_cycle+gpu_tot_sim_cycle)%5000==0)
    {
-        FILE *ipc_read;
-        FILE *missrate_read;
-        ipc_read=fopen("temp_ipc.txt","a+");
-        missrate_read=fopen("temp_missrate.txt","a+");
-        if(ipc_read!=NULL &&missrate_read!=NULL){
-            fscanf(ipc_read,"%f",&ipc_curr);
-            fscanf(missrate_read,"%f",&missrate_curr);
-            fclose(ipc_read);
-            fclose(missrate_read);
-            remove("temp_ipc.txt");
-            remove("temp_missrate.txt");
             if(ipc_curr!=ipc_prev){
                 // printf("%f,%f,%f,%f--bobo\n",ipc_curr,missrate_curr,ipc_prev,missrate_prev);
                 // printf("%d, %f , %f ,%d\n",tlp_curr,ipc_curr,missrate_curr,gpu_sim_cycle+gpu_tot_sim_cycle);
@@ -2730,9 +2732,7 @@ unsigned int shader_core_config::max_cta( const kernel_info_t &k ) const
             }
             tlp_prev=tlp_curr;   
             ipc_prev=ipc_curr;
-            missrate_prev=missrate_curr;
-            
-        }    
+            missrate_prev=missrate_curr;   
    }
     
     
@@ -3329,13 +3329,13 @@ bool opndcoll_rfu_t::writeback( const warp_inst_t &inst )
 	    	  m_shader->incregfile_writes(m_shader->get_config()->warp_size);//inst.active_count());
 	      }
    }
-   int latency=gpu_sim_cycle+gpu_tot_sim_cycle-inst.begin_time;
-   FILE *ptr;
-   ptr=fopen("./latencyL1L2.csv","a");//bosheng:0914 from issue to writeback 
-   if(inst.op_pipe==MEM__OP && inst.warp_div>0){
-       fprintf(ptr,"%d,%d,%d,%d,%d,%d,%d\n",m_shader->get_sid(),inst.warp_id(),inst.pc,inst.warp_div,inst.get_issue_cycle(),gpu_sim_cycle+gpu_tot_sim_cycle,latency);
-   }
-        fclose(ptr);
+//    int latency=gpu_sim_cycle+gpu_tot_sim_cycle-inst.begin_time;
+//    FILE *ptr;
+//    ptr=fopen("./latencyL1L2.csv","a");//bosheng:0914 from issue to writeback 
+//    if(inst.op_pipe==MEM__OP && inst.warp_div>0){
+//        fprintf(ptr,"%d,%d,%d,%d,%d,%d,%d\n",m_shader->get_sid(),inst.warp_id(),inst.pc,inst.warp_div,inst.get_issue_cycle(),gpu_sim_cycle+gpu_tot_sim_cycle,latency);
+//    }
+//         fclose(ptr);
    return true;
 }
 
